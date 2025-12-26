@@ -869,8 +869,6 @@ const App = () => {
   const labelClass = "font-normal text-[13px] text-black uppercase";
   const selectClass = "w-full p-1.5 border-2 border-black font-normal bg-white brutalist-shadow-sm focus:outline-none text-xs";
   
-  const isKeyUnset = !config.apiKey && !safeEnvKey;
-
   return (
     <div className="min-h-screen flex flex-col md:flex-row bg-[#F1F5F9] md:h-screen overflow-hidden" 
          onMouseMove={handleContainerMouseMove} 
