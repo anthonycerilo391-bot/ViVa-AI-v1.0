@@ -1245,24 +1245,16 @@ const App = () => {
         </div>
       </div>
 
-      {isSelecting && (
-        <div className="fixed border-2 border-brand-blue z-[60] pointer-events-none" 
-             style={{ 
-               left: Math.min(selectionStart.x, selectionCurrent.x), 
-               top: Math.min(selectionStart.y, selectionCurrent.y), 
-               width: Math.abs(selectionCurrent.x - selectionStart.x), 
-               height: Math.abs(selectionCurrent.y - selectionStart.y) 
-             }} 
-        />
-      )}
-
       {activeModal === 'announcement' && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
           <div className="w-[550px] bg-white border-4 border-black brutalist-shadow animate-in zoom-in-95 relative">
             <ModalHeader title="最新公告 / ANNOUNCEMENT" icon={Megaphone} onClose={() => setActiveModal(null)} />
             <div className="p-8 space-y-6">
               
-              <div className="bg-brand-red text-white p-4 border-2 border-black brutalist-shadow-sm flex items-center justify-center gap-2 animate-pulse">
+              <div 
+                onClick={() => setActiveModal('settings')}
+                className="bg-brand-red text-white p-4 border-2 border-black brutalist-shadow-sm flex items-center justify-center gap-2 animate-pulse cursor-pointer hover:scale-[1.02] transition-transform"
+              >
                 <AlertCircle className="w-6 h-6 flex-shrink-0" />
                 <span className="font-bold text-lg italic uppercase tracking-wider text-center">
                   首次使用前，请设置API令牌
@@ -1320,8 +1312,8 @@ const App = () => {
               
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <a href={FIXED_BASE_URL} target="_blank" className="text-base font-bold uppercase text-black hover:text-brand-blue cursor-pointer underline flex items-center gap-1 italic">
-                    API地址 (默认/已锁定) <ExternalLink className="w-3 h-3" />
+                  <a href={FIXED_BASE_URL} target="_blank" className="text-base font-bold uppercase text-brand-red hover:text-brand-blue cursor-pointer underline flex items-center gap-1 italic">
+                    API令牌获取地址 <ExternalLink className="w-3 h-3" />
                   </a>
                   <span className="flex items-center gap-1 text-[10px] font-bold text-slate-400 uppercase italic">
                     <Lock className="w-3 h-3" /> 固定设置
