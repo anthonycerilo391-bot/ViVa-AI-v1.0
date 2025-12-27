@@ -1321,7 +1321,7 @@ const App = () => {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <a href={FIXED_BASE_URL} target="_blank" className="text-base font-bold uppercase text-black hover:text-brand-blue cursor-pointer underline flex items-center gap-1 italic">
-                    API地址 (默认/已锁定) <ExternalLink className="w-3 h-3" />
+                    API令牌获取地址 <ExternalLink className="w-3 h-3" />
                   </a>
                   <span className="flex items-center gap-1 text-[10px] font-bold text-slate-400 uppercase italic">
                     <Lock className="w-3 h-3" /> 固定设置
