@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import { 
@@ -7,7 +8,7 @@ import {
   RefreshCw, Edit, Maximize2, Headset, Check,
   Square, CheckSquare, Link as LinkIcon, Megaphone, ExternalLink, Lock,
   History, Copy, ClipboardCheck, Trash2,
-  AlertTriangle
+  AlertTriangle, Palette
 } from 'lucide-react';
 
 // --- Types & Declarations ---
@@ -19,7 +20,7 @@ declare var process: {
   }
 };
 
-type ModalType = 'settings' | 'links' | 'usage' | 'price' | 'support' | 'announcement' | 'edit-prompt' | null;
+type ModalType = 'settings' | 'links' | 'usage' | 'price' | 'support' | 'announcement' | 'edit-prompt' | 'styles' | null;
 
 interface AppConfig {
   baseUrl: string;
@@ -194,6 +195,36 @@ const VIDEO_MODELS = [
       {s: '6', q: '标清'}
     ]
   }
+];
+
+const STYLES = [
+  { zh: "写实", en: "Realistic" },
+  { zh: "3D渲染", en: "3D Render" },
+  { zh: "扁平化", en: "Flat design" },
+  { zh: "日系动漫", en: "Anime" },
+  { zh: "Q版卡通", en: "Cartoon" },
+  { zh: "传统国风", en: "Chinese" },
+  { zh: "赛博朋克", en: "Cyberpunk" },
+  { zh: "INS极简", en: "Minimalist" },
+  { zh: "线描", en: "Line Art" },
+  { zh: "港风", en: "HK Style" },
+  { zh: "美式卡通", en: "US Cartoon" },
+  { zh: "蒸汽波", en: "Vaporwave" },
+  { zh: "水彩", en: "Watercolor" },
+  { zh: "油画", en: "Oil Paint" },
+  { zh: "像素艺术", en: "Pixel Art" },
+  { zh: "故障艺术", en: "Glitch" },
+  { zh: "水墨画", en: "Ink Art" },
+  { zh: "马克笔", en: "Marker" },
+  { zh: "彩铅", en: "Pencil" },
+  { zh: "日式极简", en: "Zen" },
+  { zh: "民国风", en: "Retro" },
+  { zh: "超现实", en: "Surreal" },
+  { zh: "蜡笔画", en: "Crayon" },
+  { zh: "黏土", en: "Clay" },
+  { zh: "折纸", en: "Origami" },
+  { zh: "毛毡", en: "Felt" },
+  { zh: "针织", en: "Knitted" }
 ];
 
 const OPTIMIZER_MODEL = 'gemini-3-flash-preview';
@@ -610,6 +641,18 @@ const App = () => {
         const optimized = data.choices?.[0]?.message?.content?.trim();
         if (optimized) { setPrompt(optimized); setError(null); }
      } catch (e) { setError("AI优化失败"); } finally { setIsOptimizing(false); }
+  };
+
+  const selectStyle = (style: string) => {
+    setPrompt(prev => {
+        const trimmed = prev.trim();
+        if (!trimmed) return style;
+        // Check if last char is punctuation
+        const lastChar = trimmed.slice(-1);
+        const separator = (lastChar === ',' || lastChar === '，' || lastChar === '.' || lastChar === '。') ? ' ' : ', ';
+        return trimmed + separator + style;
+    });
+    setActiveModal(null);
   };
 
   const executeVideoGeneration = async (overrideConfig?: any) => {
@@ -1093,6 +1136,9 @@ const App = () => {
                 <div className="flex justify-between items-end mb-0.5">
                   <label className={labelClass}>提示词描述 PROMPT</label>
                   <div className="flex gap-2">
+                    <button onClick={() => setActiveModal('styles')} className="px-1.5 py-0.5 bg-brand-blue text-white border-2 border-black font-normal text-[11px] brutalist-shadow-sm hover:translate-y-1 hover:shadow-none transition-all uppercase flex items-center gap-1">
+                        <Palette className="w-3 h-3"/> 风格
+                    </button>
                     <button onClick={() => setActiveModal('edit-prompt')} className="px-1.5 py-0.5 bg-white border-2 border-black font-normal text-[11px] brutalist-shadow-sm hover:translate-y-1 hover:shadow-none transition-all uppercase flex items-center gap-1">
                         <Maximize2 className="w-3 h-3"/> 展开
                     </button>
@@ -1502,6 +1548,36 @@ const App = () => {
                 </div>
             </div>
             </div>
+        </div>
+      )}
+
+      {activeModal === 'styles' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-2 md:p-4">
+          <div className="w-[1000px] max-w-full bg-white border-4 border-black brutalist-shadow animate-in zoom-in-95 relative flex flex-col max-h-[98vh]">
+            <ModalHeader title="艺术风格选择 / ART STYLES" icon={Palette} onClose={() => setActiveModal(null)} bgColor="bg-brand-blue" />
+            <div className="flex-1 p-4 md:p-6 overflow-y-auto no-scrollbar grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 md:gap-4 bg-[#f8fafc]">
+              {STYLES.map(style => (
+                <button 
+                  key={style.zh} 
+                  onClick={() => selectStyle(`${style.zh} ${style.en}`)}
+                  className="group p-2 md:p-3 bg-white border-2 md:border-4 border-black flex flex-col items-center justify-center gap-0.5 md:gap-1 brutalist-shadow-sm hover:translate-y-[-2px] hover:translate-x-[-1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:bg-brand-yellow transition-all duration-200"
+                >
+                  <span className="font-black text-sm md:text-lg text-black tracking-tight italic uppercase block leading-tight text-center">
+                    {style.zh}
+                  </span>
+                  <span className="font-bold text-[8px] md:text-[9px] text-slate-500 group-hover:text-black/60 uppercase tracking-tight italic block leading-none text-center">
+                    {style.en}
+                  </span>
+                </button>
+              ))}
+            </div>
+            <div className="p-3 md:p-4 border-t-4 border-black bg-brand-cream flex justify-between items-center flex-shrink-0">
+              <p className="text-[10px] md:text-xs font-bold text-slate-500 italic uppercase">点击风格即可追加至提示词尾部 | 不含隐藏参数</p>
+              <button onClick={() => setActiveModal(null)} className="px-4 md:px-8 py-1.5 md:py-2.5 bg-black text-white border-2 border-black font-bold uppercase tracking-tighter italic text-xs md:text-sm brutalist-shadow-sm hover:translate-y-1 hover:shadow-none transition-all">
+                取消 / CANCEL
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
