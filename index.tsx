@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import { 
@@ -8,7 +7,7 @@ import {
   RefreshCw, Edit, Maximize2, Headset, Check,
   Square, CheckSquare, Link as LinkIcon, Megaphone, ExternalLink, Lock,
   History, Copy, ClipboardCheck, Trash2,
-  AlertTriangle, Palette
+  AlertTriangle, Palette, Bookmark, Wand2, GripVertical, Save
 } from 'lucide-react';
 
 // --- Types & Declarations ---
@@ -20,7 +19,7 @@ declare var process: {
   }
 };
 
-type ModalType = 'settings' | 'links' | 'usage' | 'price' | 'support' | 'announcement' | 'edit-prompt' | 'styles' | null;
+type ModalType = 'settings' | 'links' | 'usage' | 'price' | 'support' | 'announcement' | 'edit-prompt' | 'styles' | 'library' | null;
 
 interface AppConfig {
   baseUrl: string;
@@ -58,6 +57,11 @@ interface ModelDefinition {
   supportedResolutions: string[];
 }
 
+interface SavedPrompt {
+  id: string;
+  text: string;
+}
+
 // --- Constants ---
 
 const FIXED_BASE_URL = 'https://www.vivaapi.cn';
@@ -80,6 +84,7 @@ const GPT1_RATIOS = ['1:1', '2:3', '3:2'];
 const GPT15_RATIOS = ['1:1', '2:3', '3:2', '9:16', '16:9'];
 const GROK_RATIOS = ['1:1', '3:4', '4:3', '9:16', '16:9'];
 const KLING_O1_RATIOS = ['1:1', '2:3', '3:2', '3:4', '4:3', '9:16', '16:9', '21:9'];
+const JIMENG_RATIOS = ['1:1', '3:4', '4:3', '9:16', '16:9', '21:9'];
 
 const MODELS: ModelDefinition[] = [
   { 
@@ -149,24 +154,6 @@ const MODELS: ModelDefinition[] = [
 
 const VIDEO_MODELS = [
   { 
-    id: 'veo_3_1-fast', 
-    name: 'VEO 3.1 FAST', 
-    desc: '标清视频', 
-    supportedAspectRatios: ['9:16', '16:9'],
-    options: [
-      {s: '8', q: '标清'}
-    ] 
-  },
-  { 
-    id: 'veo3.1-pro', 
-    name: 'VEO 3.1 PRO', 
-    desc: '高清视频', 
-    supportedAspectRatios: ['9:16', '16:9'],
-    options: [
-      {s: '8', q: '高清'}
-    ] 
-  },
-  { 
     id: 'sora-2', 
     name: 'Sora 2', 
     desc: '标清视频', 
@@ -186,11 +173,39 @@ const VIDEO_MODELS = [
       {s: '25', q: '标清'}
     ] 
   },
+  { 
+    id: 'veo_3_1-fast', 
+    name: 'VEO 3.1 FAST', 
+    desc: '标清视频', 
+    supportedAspectRatios: ['9:16', '16:9'],
+    options: [
+      {s: '8', q: '标清'}
+    ] 
+  },
+  { 
+    id: 'veo3.1-pro', 
+    name: 'VEO 3.1 PRO', 
+    desc: '高清视频', 
+    supportedAspectRatios: ['9:16', '16:9'],
+    options: [
+      {s: '8', q: '高清'}
+    ] 
+  },
+  {
+    id: 'jimeng-video-3.0',
+    name: 'Jimeng Video 3.0',
+    desc: '即梦视频',
+    supportedAspectRatios: JIMENG_RATIOS,
+    options: [
+      {s: '5', q: '标清'},
+      {s: '10', q: '标清'}
+    ]
+  },
   {
     id: 'grok-video-3',
     name: 'Grok Video 3',
     desc: '标清视频', 
-    supportedAspectRatios: ['2:3', '3:2', '1:1'],
+    supportedAspectRatios: ['9:16', '16:9', '2:3', '3:2', '1:1'],
     options: [
       {s: '6', q: '标清'}
     ]
@@ -397,6 +412,7 @@ const App = () => {
   const [config, setConfig] = useState<AppConfig>({ baseUrl: FIXED_BASE_URL, apiKey: '' });
   const [tempConfig, setTempConfig] = useState<AppConfig>(config);
   const [prompt, setPrompt] = useState('');
+  const [libraryPrompts, setLibraryPrompts] = useState<SavedPrompt[]>([]);
   const [referenceImages, setReferenceImages] = useState<ReferenceImage[]>([]);
   const [imageSize, setImageSize] = useState('AUTO');
   const [aspectRatio, setAspectRatio] = useState('1:1');
@@ -409,6 +425,10 @@ const App = () => {
   const [selectionStart, setSelectionStart] = useState({ x: 0, y: 0 });
   const [selectionCurrent, setSelectionCurrent] = useState({ x: 0, y: 0 });
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [draggedPromptIdx, setDraggedPromptIdx] = useState<number | null>(null);
+  const [showSaveSuccess, setShowSaveSuccess] = useState(false);
+  const [editingLibraryId, setEditingLibraryId] = useState<string | null>(null);
+  const [editingLibraryText, setEditingLibraryText] = useState('');
 
   const galleryRef = useRef<HTMLDivElement>(null);
   const configRef = useRef(config);
@@ -470,6 +490,12 @@ const App = () => {
         sorted.filter(a => a.type === 'image' && a.modelId === 'kling-image-o1' && (a.status === 'queued' || a.status === 'processing'))
               .forEach(v => startKlingImagePolling(v.taskId!, v.id, v.timestamp));
     });
+
+    // Load library prompts
+    const savedLibrary = localStorage.getItem('viva_library_prompts');
+    if (savedLibrary) {
+        try { setLibraryPrompts(JSON.parse(savedLibrary)); } catch (e) { setLibraryPrompts([]); }
+    }
   }, []);
 
   // Initialization: Load config from local storage
@@ -545,8 +571,8 @@ const App = () => {
         let key = configRef.current.apiKey || safeEnvKey;
         if (!key || !taskId) { clearInterval(interval); return; }
         try {
-            const isVeoOrGrok = modelId.startsWith('veo') || modelId.startsWith('grok');
-            const url = isVeoOrGrok ? `${configRef.current.baseUrl}/v1/video/query?id=${taskId}` : `${configRef.current.baseUrl}/v1/videos/${taskId}`;
+            const isVeoGrokJimeng = modelId.startsWith('veo') || modelId.startsWith('grok') || modelId.startsWith('jimeng');
+            const url = isVeoGrokJimeng ? `${configRef.current.baseUrl}/v1/video/query?id=${taskId}` : `${configRef.current.baseUrl}/v1/videos/${taskId}`;
             
             const res = await fetch(url, { headers: { 'Authorization': `Bearer ${key}`, 'Accept': 'application/json' } });
             const data = await res.json();
@@ -655,6 +681,74 @@ const App = () => {
     setActiveModal(null);
   };
 
+  const savePromptToLibrary = () => {
+    if (!prompt.trim()) return;
+    const newPrompt = { id: generateUUID(), text: prompt.trim() };
+    const updated = [newPrompt, ...libraryPrompts];
+    setLibraryPrompts(updated);
+    localStorage.setItem('viva_library_prompts', JSON.stringify(updated));
+    setShowSaveSuccess(true);
+    setTimeout(() => setShowSaveSuccess(false), 2000);
+    setError(null);
+  };
+
+  const removePromptFromLibrary = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const updated = libraryPrompts.filter(p => p.id !== id);
+    setLibraryPrompts(updated);
+    localStorage.setItem('viva_library_prompts', JSON.stringify(updated));
+  };
+
+  const usePromptFromLibrary = (text: string) => {
+    if (editingLibraryId) return; // Don't use prompt if currently editing
+    setPrompt(text);
+    setActiveModal(null);
+  };
+
+  const handleStartLibraryEdit = (p: SavedPrompt, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingLibraryId(p.id);
+    setEditingLibraryText(p.text);
+  };
+
+  const handleSaveLibraryEdit = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const updated = libraryPrompts.map(p => p.id === id ? { ...p, text: editingLibraryText } : p);
+    setLibraryPrompts(updated);
+    localStorage.setItem('viva_library_prompts', JSON.stringify(updated));
+    setEditingLibraryId(null);
+  };
+
+  const handleCancelLibraryEdit = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingLibraryId(null);
+  };
+
+  // --- Drag & Drop Sorting Handlers ---
+  const handleDragStart = (idx: number) => {
+    if (editingLibraryId) return;
+    setDraggedPromptIdx(idx);
+  };
+
+  const handleDragOver = (e: React.DragEvent, idx: number) => {
+    e.preventDefault();
+    if (editingLibraryId) return;
+    if (draggedPromptIdx === null || draggedPromptIdx === idx) return;
+    
+    const items = [...libraryPrompts];
+    const draggedItem = items[draggedPromptIdx];
+    items.splice(draggedPromptIdx, 1);
+    items.splice(idx, 0, draggedItem);
+    
+    setDraggedPromptIdx(idx);
+    setLibraryPrompts(items);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedPromptIdx(null);
+    localStorage.setItem('viva_library_prompts', JSON.stringify(libraryPrompts));
+  };
+
   const executeVideoGeneration = async (overrideConfig?: any) => {
     const tPrompt = overrideConfig?.prompt ?? prompt;
     if (!tPrompt) { setError("请输入提示词"); return; }
@@ -686,8 +780,9 @@ const App = () => {
             let response;
             const isVeoModel = tModelId.startsWith('veo');
             const isGrokModel = tModelId.startsWith('grok');
+            const isJimengModel = tModelId.startsWith('jimeng');
             
-            if (isVeoModel || isGrokModel) {
+            if (isVeoModel || isGrokModel || isJimengModel) {
                 const payload: any = {
                     model: tModelId,
                     prompt: tPrompt,
@@ -702,6 +797,10 @@ const App = () => {
 
                 if (isGrokModel) {
                    payload.size = '720P';
+                }
+
+                if (isJimengModel) {
+                    payload.duration = parseInt(VIDEO_MODELS.find(m => m.id === tModelId)!.options[tOptIdx].s);
                 }
 
                 response = await fetch(`${config.baseUrl}/v1/video/create`, {
@@ -1133,27 +1232,48 @@ const App = () => {
               </div>
 
               <div className="space-y-1">
-                <div className="flex justify-between items-end mb-0.5">
+                <div className="flex justify-between items-end mb-1.5">
                   <label className={labelClass}>提示词描述 PROMPT</label>
-                  <div className="flex gap-2">
-                    <button onClick={() => setActiveModal('styles')} className="px-1.5 py-0.5 bg-brand-blue text-white border-2 border-black font-normal text-[11px] brutalist-shadow-sm hover:translate-y-1 hover:shadow-none transition-all uppercase flex items-center gap-1">
-                        <Palette className="w-3 h-3"/> 风格
-                    </button>
-                    <button onClick={() => setActiveModal('edit-prompt')} className="px-1.5 py-0.5 bg-white border-2 border-black font-normal text-[11px] brutalist-shadow-sm hover:translate-y-1 hover:shadow-none transition-all uppercase flex items-center gap-1">
-                        <Maximize2 className="w-3 h-3"/> 展开
-                    </button>
-                    <button onClick={optimizePrompt} disabled={isOptimizing} className="px-1.5 py-0.5 bg-brand-yellow border-2 border-black font-normal text-[11px] brutalist-shadow-sm hover:translate-y-1 hover:shadow-none transition-all uppercase">
-                        {isOptimizing ? <Loader2 className="w-3 animate-spin"/> : 'AI优化'}
-                    </button>
-                  </div>
                 </div>
-                <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="描述您的创作奇想..." className="w-full h-48 p-2 border-2 border-black font-normal text-[12px] bg-white focus:outline-none brutalist-input resize-y" />
+                
+                {/* Updated Toolbar matching the provided image style */}
+                <div className="flex gap-1.5 mb-2 bg-[#FFFDE7] p-1 border-2 border-black brutalist-shadow-sm">
+                  <button onClick={() => setActiveModal('library')} className="flex items-center gap-1.5 px-3 py-1.5 bg-[#A855F7] text-white border-2 border-black font-bold text-xs brutalist-shadow-sm hover:translate-y-0.5 hover:shadow-none transition-all uppercase">
+                    <Bookmark className="w-3.5 h-3.5"/> 库
+                  </button>
+                  <button onClick={savePromptToLibrary} disabled={!prompt.trim()} className="flex items-center gap-1.5 px-3 py-1.5 bg-[#F472B6] text-white border-2 border-black font-bold text-xs brutalist-shadow-sm hover:translate-y-0.5 hover:shadow-none transition-all uppercase disabled:opacity-50 disabled:grayscale disabled:hover:translate-y-0 disabled:hover:shadow-sm">
+                    <Save className="w-3.5 h-3.5"/> 保存
+                  </button>
+                  <button onClick={() => setActiveModal('styles')} className="flex items-center gap-1.5 px-3 py-1.5 bg-[#3B82F6] text-white border-2 border-black font-bold text-xs brutalist-shadow-sm hover:translate-y-0.5 hover:shadow-none transition-all uppercase">
+                    <Palette className="w-3.5 h-3.5"/> 风格
+                  </button>
+                  <button onClick={() => setActiveModal('edit-prompt')} className="flex items-center gap-1.5 px-3 py-1.5 bg-[#4ADE80] text-black border-2 border-black font-bold text-xs brutalist-shadow-sm hover:translate-y-0.5 hover:shadow-none transition-all uppercase">
+                    <Maximize2 className="w-3.5 h-3.5"/> 展开
+                  </button>
+                  <button onClick={optimizePrompt} disabled={isOptimizing} className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 bg-[#F7CE00] text-black border-2 border-black font-bold text-xs brutalist-shadow-sm hover:translate-y-0.5 hover:shadow-none transition-all uppercase">
+                    {isOptimizing ? <Loader2 className="w-3.5 h-3.5 animate-spin"/> : <><Wand2 className="w-3.5 h-3.5"/> AI优化</>}
+                  </button>
+                </div>
+
+                <div className="relative group">
+                    <textarea 
+                        value={prompt} 
+                        onChange={(e) => setPrompt(e.target.value)} 
+                        placeholder="描述您的创作奇想..." 
+                        className="w-full h-48 p-3 border-2 border-black font-normal text-[12px] bg-white focus:outline-none brutalist-input resize-y" 
+                    />
+                    {showSaveSuccess && (
+                      <div className="absolute top-2 right-2 bg-brand-green text-black border-2 border-black px-2 py-1 text-[10px] font-bold brutalist-shadow-sm animate-in fade-in slide-in-from-right-2 z-20 italic">
+                        保存成功
+                      </div>
+                    )}
+                </div>
               </div>
             </div>
           </section>
 
           <div className="space-y-3">
-            <button onClick={() => executeGeneration()} className="w-full py-4 bg-brand-red text-white text-2xl font-normal border-4 border-black brutalist-shadow hover:translate-y-1.5 hover:shadow-none transition-all uppercase tracking-tighter">
+            <button onClick={() => executeGeneration()} className="w-full py-3 bg-brand-red text-white text-xl font-normal border-2 border-black brutalist-shadow hover:translate-y-1.5 hover:shadow-none transition-all uppercase tracking-tighter">
               开始创作/Start Creating
             </button>
             
@@ -1205,6 +1325,13 @@ const App = () => {
               )}
             </div>
           </div>
+        </div>
+
+        <div className="bg-brand-cream border-b-4 border-black py-3 flex justify-center items-center shrink-0">
+           <p className="text-base font-bold text-brand-red flex items-center gap-2">
+             <AlertTriangle className="w-5 h-5" />
+             本应用不存储用户生成资产，请及时下载保存。
+           </p>
         </div>
 
         <div className="flex-1 overflow-y-auto p-10 no-scrollbar">
@@ -1469,13 +1596,14 @@ const App = () => {
                   items: [
                     { m: 'VEO 3.1 FAST', p: '0.11元/次' },
                     { m: 'VEO 3.1 PRO', p: '2.45元/次' },
+                    { m: 'Jimeng Video 3.0', p: '0.266元/条' },
                     { m: 'Sora 2', p: '0.08元/条' },
                     { m: 'Sora 2 Pro', p: '2.52元/条' },
                     { m: 'Grok Video 3', p: '0.14元/条' },
                   ]
                 }
               ].map((cat, cidx) => (
-                <div key={cidx} className="border-b-4 border-black last:border-b-0">
+                <div key={cat} className="border-b-4 border-black last:border-b-0">
                   <div className="bg-slate-700 text-white px-6 py-1 text-base font-bold uppercase tracking-wider flex items-center gap-2 italic">
                     <Sparkles className="w-3 h-3" /> {cat.category}
                   </div>
@@ -1518,7 +1646,7 @@ const App = () => {
                     value={prompt} 
                     onChange={(e) => setPrompt(e.target.value)} 
                     placeholder="在此输入详细的提示词..." 
-                    className="flex-1 w-full p-4 border-2 border-black font-normal text-xl bg-[#F8FAFC] focus:outline-none brutalist-input resize-none leading-relaxed" 
+                    className="flex-1 w-full p-4 border-2 border-black font-normal text-xl bg-[#F8FAFC] focus:outline-none brutalist-input resize-none leading-relaxed italic" 
                 />
                 <div className="flex justify-between items-center pt-2">
                     <div className="text-xs text-slate-500 font-bold uppercase italic">
@@ -1545,27 +1673,110 @@ const App = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-2 md:p-4">
           <div className="w-[1000px] max-w-full bg-white border-4 border-black brutalist-shadow animate-in zoom-in-95 relative flex flex-col max-h-[98vh]">
             <ModalHeader title="艺术风格选择 / ART STYLES" icon={Palette} onClose={() => setActiveModal(null)} bgColor="bg-brand-blue" />
-            <div className="flex-1 p-4 md:p-6 overflow-y-auto no-scrollbar grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 md:gap-4 bg-[#f8fafc]">
-              {STYLES.map(style => (
-                <button 
-                  key={style.zh} 
-                  onClick={() => selectStyle(`${style.zh} ${style.en}`)}
-                  className="group p-2 md:p-3 bg-white border-2 md:border-4 border-black flex flex-col items-center justify-center gap-0.5 md:gap-1 brutalist-shadow-sm hover:translate-y-[-2px] hover:translate-x-[-1px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:bg-brand-yellow transition-all duration-200"
-                >
-                  <span className="font-black text-sm md:text-lg text-black tracking-tight italic uppercase block leading-tight text-center">
-                    {style.zh}
-                  </span>
-                  <span className="font-bold text-[8px] md:text-[9px] text-slate-500 group-hover:text-black/60 uppercase tracking-tight italic block leading-none text-center">
-                    {style.en}
-                  </span>
-                </button>
-              ))}
+            <div className="flex-1 p-4 md:p-6 overflow-y-auto no-scrollbar bg-[#f8fafc]">
+              
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 md:gap-4">
+                {STYLES.map(style => (
+                  <button 
+                    key={style.zh} 
+                    onClick={() => selectStyle(`${style.zh} ${style.en}`)}
+                    className="group p-2 md:p-3 bg-white border-2 md:border-4 border-black flex flex-col items-center justify-center gap-0.5 md:gap-1 brutalist-shadow-sm hover:translate-y-[-2px] hover:translate-x-[-1px] hover:bg-brand-yellow transition-all duration-200"
+                  >
+                    <span className="font-black text-sm md:text-lg text-black tracking-tight italic uppercase block leading-tight text-center">
+                      {style.zh}
+                    </span>
+                    <span className="font-bold text-[8px] md:text-[9px] text-slate-500 group-hover:text-black/60 uppercase tracking-tight italic block leading-none text-center">
+                      {style.en}
+                    </span>
+                  </button>
+                ))}
+              </div>
             </div>
             <div className="p-3 md:p-4 border-t-4 border-black bg-brand-cream flex justify-between items-center flex-shrink-0">
               <p className="text-[10px] md:text-xs font-bold text-slate-500 italic uppercase">点击风格即可追加至提示词尾部 | 不含隐藏参数</p>
               <button onClick={() => setActiveModal(null)} className="px-4 md:px-8 py-1.5 md:py-2.5 bg-black text-white border-2 border-black font-bold uppercase tracking-tighter italic text-xs md:text-sm brutalist-shadow-sm hover:translate-y-1 hover:shadow-none transition-all">
                 取消 / CANCEL
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeModal === 'library' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="w-[800px] max-w-full h-[80vh] bg-white border-4 border-black brutalist-shadow animate-in zoom-in-95 relative flex flex-col">
+            <ModalHeader title="提示词库 / PROMPT LIBRARY" icon={Bookmark} onClose={() => setActiveModal(null)} bgColor="bg-brand-purple" />
+            <div className="flex-1 overflow-y-auto p-6 space-y-4 no-scrollbar bg-slate-50">
+                {libraryPrompts.length === 0 ? (
+                    <div className="h-full flex flex-col items-center justify-center text-slate-300 gap-4">
+                        <Bookmark className="w-20 h-20 opacity-20"/>
+                        <p className="font-bold text-2xl uppercase italic tracking-tighter">Your library is empty</p>
+                    </div>
+                ) : (
+                    libraryPrompts.map((p, idx) => (
+                        <div 
+                            key={p.id}
+                            draggable={!editingLibraryId}
+                            onDragStart={() => handleDragStart(idx)}
+                            onDragOver={(e) => handleDragOver(e, idx)}
+                            onDragEnd={handleDragEnd}
+                            onClick={() => usePromptFromLibrary(p.text)}
+                            className={`group relative bg-white border-2 border-black p-4 brutalist-shadow-sm hover:bg-brand-cream cursor-pointer transition-all flex items-start gap-4 ${draggedPromptIdx === idx ? 'opacity-40 border-dashed border-brand-purple scale-95' : 'translate-y-0'} ${editingLibraryId === p.id ? 'ring-2 ring-brand-purple bg-brand-cream' : ''}`}
+                        >
+                            {!editingLibraryId && (
+                              <div className="mt-1 text-slate-400 group-hover:text-brand-purple cursor-grab active:cursor-grabbing" title="拖动排序">
+                                  <GripVertical className="w-5 h-5"/>
+                              </div>
+                            )}
+                            <div className="flex-1">
+                                {editingLibraryId === p.id ? (
+                                  <div className="space-y-3" onClick={e => e.stopPropagation()}>
+                                    <textarea 
+                                      value={editingLibraryText} 
+                                      onChange={(e) => setEditingLibraryText(e.target.value)} 
+                                      className="w-full p-3 border-2 border-black font-normal text-xl bg-white focus:outline-none brutalist-input leading-relaxed italic min-h-[120px]"
+                                      autoFocus
+                                    />
+                                    <div className="flex gap-2 justify-end">
+                                      <button onClick={(e) => handleCancelLibraryEdit(e)} className="px-3 py-1 bg-white border-2 border-black font-bold text-xs brutalist-shadow-sm hover:translate-y-0.5 hover:shadow-none transition-all uppercase italic">取消</button>
+                                      <button onClick={(e) => handleSaveLibraryEdit(p.id, e)} className="px-3 py-1 bg-brand-green border-2 border-black font-bold text-xs brutalist-shadow-sm hover:translate-y-0.5 hover:shadow-none transition-all uppercase italic">保存</button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <p className="text-xl font-normal leading-relaxed italic">"{p.text}"</p>
+                                )}
+                            </div>
+                            {!editingLibraryId && (
+                              <div className="flex flex-col gap-2">
+                                <button 
+                                    onClick={(e) => removePromptFromLibrary(p.id, e)}
+                                    className="opacity-0 group-hover:opacity-100 p-2 bg-brand-red text-white border-2 border-black brutalist-shadow-sm hover:translate-y-0.5 hover:shadow-none transition-all"
+                                    title="从库中删除"
+                                >
+                                    <Trash2 className="w-4 h-4"/>
+                                </button>
+                                <button 
+                                    onClick={(e) => handleStartLibraryEdit(p, e)}
+                                    className="opacity-0 group-hover:opacity-100 p-2 bg-brand-yellow text-black border-2 border-black brutalist-shadow-sm hover:translate-y-0.5 hover:shadow-none transition-all"
+                                    title="直接编辑"
+                                >
+                                    <Edit className="w-4 h-4"/>
+                                </button>
+                              </div>
+                            )}
+                        </div>
+                    ))
+                )}
+            </div>
+            <div className="p-4 bg-brand-cream border-t-4 border-black flex justify-between items-center">
+                <p className="text-xs font-bold text-slate-500 italic uppercase">点击条目直接使用 | 按住左键拖动条目可进行排序 | 点击编辑按钮直接编辑</p>
+                <button 
+                  onClick={() => { savePromptToLibrary(); setActiveModal(null); }} 
+                  disabled={!prompt.trim()}
+                  className="px-8 py-2.5 bg-black text-white border-2 border-black font-bold uppercase tracking-tighter italic text-sm brutalist-shadow-sm hover:translate-y-1 hover:shadow-none transition-all disabled:opacity-30 disabled:grayscale"
+                >
+                  保存当前输入 / SAVE CURRENT
+                </button>
             </div>
           </div>
         </div>
