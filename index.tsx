@@ -5,10 +5,10 @@ import {
   Loader2, Download,
   Bot, X, AlertCircle, Plus,
   RefreshCw, Edit, Maximize2, Check,
-  Square, CheckSquare, Link as LinkIcon, Megaphone, ExternalLink, Lock,
+  Square, CheckSquare, Megaphone, ExternalLink, Lock,
   History, Copy, ClipboardCheck, Trash2,
   AlertTriangle, Palette, Bookmark, Wand2, GripVertical, Save,
-  Image as ImageIcon, Film, Folder, Tag, LayoutGrid, Pencil, ChevronDown,
+  Image as ImageIcon, Film, Folder, Tag, LayoutGrid, ChevronDown,
   BookOpen, Headset
 } from 'lucide-react';
 
@@ -2063,7 +2063,7 @@ const App = () => {
                                 <p className="font-bold text-xl uppercase italic tracking-tighter">No prompts found in this category</p>
                             </div>
                         ) : (
-                            libraryPrompts.filter(p => selectedCategory === '全部' || p.category === selectedCategory).map((p, idx) => (
+                            libraryPrompts.filter(p => selectedCategory === '全部' || p.category === selectedCategory).map((p) => (
                                 <div 
                                     key={p.id}
                                     draggable={!editingLibraryId && selectedCategory === '全部'}
