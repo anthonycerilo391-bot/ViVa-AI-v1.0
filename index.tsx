@@ -1797,6 +1797,33 @@ const App = () => {
     });
   };
 
+  const handleAssetDownload = async (asset: GeneratedAsset, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!asset.url) return;
+
+    try {
+        const response = await fetch(asset.url);
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `viva-${asset.id}.${asset.type === 'video' ? 'mp4' : 'png'}`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+    } catch (error) {
+        console.error("Download failed, using fallback", error);
+        const link = document.createElement('a');
+        link.href = asset.url;
+        link.download = `viva-${asset.id}.${asset.type === 'video' ? 'mp4' : 'png'}`;
+        link.target = "_blank";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+  };
+
   const handleAssetRefresh = (asset: GeneratedAsset) => {
      if (asset.config) {
         setPrompt(asset.config.prompt);
@@ -2119,7 +2146,7 @@ const App = () => {
                   </div>
                   
                   {/* Updated Toolbar matching the provided image style */}
-                  <div className="flex gap-1.5 mb-2 bg-[#FFFDE7] p-1 border-2 border-black brutalist-shadow-sm">
+                  <div className="flex flex-wrap gap-1.5 mb-2 bg-[#FFFDE7] p-1 border-2 border-black brutalist-shadow-sm">
                     <button onClick={() => setPrompt('')} className="flex items-center justify-center px-2 py-1.5 bg-white text-black border-2 border-black font-bold text-xs brutalist-shadow-sm hover:bg-brand-red hover:text-white hover:translate-y-0.5 hover:shadow-none transition-all uppercase whitespace-nowrap" title="清空提示词">
                       <Trash2 className="w-3.5 h-3.5"/>
                     </button>
@@ -2135,7 +2162,7 @@ const App = () => {
                     <button onClick={() => setActiveModal('edit-prompt')} className="flex items-center gap-1.5 px-3 py-1.5 bg-[#4ADE80] text-black border-2 border-black font-bold text-xs brutalist-shadow-sm hover:translate-y-0.5 hover:shadow-none transition-all uppercase whitespace-nowrap">
                       <Maximize2 className="w-3.5 h-3.5"/> 展开
                     </button>
-                    <button onClick={optimizePrompt} disabled={isOptimizing} className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 bg-[#F7CE00] text-black border-2 border-black font-bold text-xs brutalist-shadow-sm hover:translate-y-0.5 hover:shadow-none transition-all uppercase whitespace-nowrap">
+                    <button onClick={optimizePrompt} disabled={isOptimizing} className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-[#F7CE00] text-black border-2 border-black font-bold text-xs brutalist-shadow-sm hover:translate-y-0.5 hover:shadow-none transition-all uppercase whitespace-nowrap">
                       {isOptimizing ? <Loader2 className="w-3.5 h-3.5 animate-spin"/> : <><Wand2 className="w-3.5 h-3.5"/> AI优化</>}
                     </button>
                   </div>
@@ -2265,7 +2292,7 @@ const App = () => {
                   {asset.status === 'completed' && (
                     <div className="absolute inset-0 bg-brand-yellow/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3 z-20">
                         <button onClick={(e) => { e.stopPropagation(); setPreviewAsset(asset); }} className="p-3 bg-white border-2 border-black brutalist-shadow-sm hover:translate-y-1 hover:shadow-none"><Maximize2 className="w-6 h-6"/></button>
-                        <a href={asset.url} download={`viva-${asset.id}`} onClick={e => e.stopPropagation()} className="p-3 bg-white border-2 border-black brutalist-shadow-sm hover:translate-y-1 hover:shadow-none"><Download className="w-6 h-6"/></a>
+                        <button onClick={(e) => handleAssetDownload(asset, e)} className="p-3 bg-white border-2 border-black brutalist-shadow-sm hover:translate-y-1 hover:shadow-none"><Download className="w-6 h-6"/></button>
                     </div>
                   )}
                 </div>
