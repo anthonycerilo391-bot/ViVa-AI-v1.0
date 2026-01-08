@@ -2736,7 +2736,7 @@ const App = () => {
                                             <p className="text-xs text-slate-600 line-clamp-2 italic">"{p.text}"</p>
                                         </div>
                                         <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <button onClick={(e) => usePromptFromLibrary(p.text)} className="p-1 bg-brand-yellow border-2 border-black hover:scale-110"><Check className="w-3 h-3"/></button>
+                                            <button onClick={() => usePromptFromLibrary(p.text)} className="p-1 bg-brand-yellow border-2 border-black hover:scale-110"><Check className="w-3 h-3"/></button>
                                             <button onClick={(e) => handleStartLibraryEdit(p, e)} className="p-1 bg-white border-2 border-black hover:scale-110"><Edit className="w-3 h-3"/></button>
                                             <button onClick={(e) => removePromptFromLibrary(p.id, e)} className="p-1 bg-brand-red text-white border-2 border-black hover:scale-110"><Trash2 className="w-3 h-3"/></button>
                                         </div>
