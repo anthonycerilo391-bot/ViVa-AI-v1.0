@@ -234,7 +234,7 @@ const KLING_MODELS = [
     id: 'kling-video', 
     name: 'KLING V2.6最新模型', 
     desc: '通用视频', 
-    supportedAspectRatios: ['16:9', '9:16', '1:1'],
+    supportedAspectRatios: ['9:16', '16:9', '1:1'],
     options: [
       {s: '5', q: '高品质模式'},
       {s: '10', q: '高品质模式'}
@@ -789,8 +789,8 @@ const SectionLabel = ({ text, link }: { text: string, link?: { href: string, tex
       {text}
     </label>
     {link && (
-      <a href={link.href} target="_blank" rel="noopener noreferrer" className="text-[10px] font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 transition-colors underline decoration-auto underline-offset-2">
-        <BookOpen className="w-3 h-3"/> {link.text}
+      <a href={link.href} target="_blank" rel="noopener noreferrer" className="text-sm font-normal uppercase tracking-tighter text-blue-600 hover:text-blue-800 flex items-center gap-1 transition-colors underline decoration-auto underline-offset-2">
+        <BookOpen className="w-4 h-4"/> {link.text}
       </a>
     )}
   </div>
@@ -918,7 +918,13 @@ const App = () => {
             }
         }
         
-        const max = selectedKlingModel === 'kling-avatar-image2video' || selectedKlingModel === 'kling-motion-control' ? 1 : 2;
+        let max = 2;
+        if (selectedKlingModel === 'kling-avatar-image2video' || selectedKlingModel === 'kling-motion-control') {
+            max = 1;
+        } else if (selectedKlingModel === 'kling-video') {
+            max = isSyncAudio ? 1 : 2;
+        }
+
         if (selectedKlingModel === 'kling-advanced-lip-sync') {
            if (referenceImages.length > 0) setReferenceImages([]);
         } else if (referenceImages.length > max) {
@@ -936,18 +942,31 @@ const App = () => {
            setReferenceVideo(null);
         }
     }
-  }, [selectedModel, selectedVideoModel, selectedKlingModel, mainCategory, aspectRatio, imageSize, videoRatio, klingRatio, isVideoMode, isProxyMode, isKlingMode, klingOptionIdx]);
+  }, [selectedModel, selectedVideoModel, selectedKlingModel, mainCategory, aspectRatio, imageSize, videoRatio, klingRatio, isVideoMode, isProxyMode, isKlingMode, klingOptionIdx, isSyncAudio]);
 
   useEffect(() => {
     if (error && error.includes('张参考图')) {
       const currentModel = MODELS.find(m => m.id === selectedModel);
-      const max = (!isVideoMode && !isKlingMode) ? (currentModel?.maxImages || 4) : 
-                  (isKlingMode ? (selectedKlingModel === 'kling-avatar-image2video' || selectedKlingModel === 'kling-motion-control' ? 1 : 2) : ((selectedVideoModel.startsWith('veo') || selectedVideoModel.startsWith('grok')) ? 2 : 1));
+      let max = 4;
+      if (!isVideoMode && !isKlingMode) {
+          max = currentModel?.maxImages || 4;
+      } else if (isKlingMode) {
+          if (selectedKlingModel === 'kling-avatar-image2video' || selectedKlingModel === 'kling-motion-control') {
+              max = 1;
+          } else if (selectedKlingModel === 'kling-video') {
+              max = isSyncAudio ? 1 : 2;
+          } else {
+              max = 2;
+          }
+      } else {
+          max = (selectedVideoModel.startsWith('veo') || selectedVideoModel.startsWith('grok')) ? 2 : 1;
+      }
+
       if (referenceImages.length <= max) {
         setError(null);
       }
     }
-  }, [referenceImages, selectedModel, selectedVideoModel, selectedKlingModel, mainCategory, error, isVideoMode, isKlingMode]);
+  }, [referenceImages, selectedModel, selectedVideoModel, selectedKlingModel, mainCategory, error, isVideoMode, isKlingMode, isSyncAudio]);
 
   useEffect(() => {
     if (isKlingMode && isSyncAudio) {
@@ -1199,8 +1218,22 @@ const App = () => {
     if (!files || files.length === 0) return;
 
     const currentModel = MODELS.find(m => m.id === selectedModel);
-    const max = (!isVideoMode && !isKlingMode) ? (currentModel?.maxImages || 4) : 
-                (isKlingMode ? (selectedKlingModel === 'kling-avatar-image2video' || selectedKlingModel === 'kling-motion-control' ? 1 : 2) : ((selectedVideoModel.startsWith('veo') || selectedVideoModel.startsWith('grok')) ? 2 : 1));
+    
+    let max = 4;
+    if (!isVideoMode && !isKlingMode) {
+        max = currentModel?.maxImages || 4;
+    } else if (isKlingMode) {
+        if (selectedKlingModel === 'kling-avatar-image2video' || selectedKlingModel === 'kling-motion-control') {
+            max = 1;
+        } else if (selectedKlingModel === 'kling-video') {
+            max = isSyncAudio ? 1 : 2;
+        } else {
+            max = 2;
+        }
+    } else {
+        max = (selectedVideoModel.startsWith('veo') || selectedVideoModel.startsWith('grok')) ? 2 : 1;
+    }
+
     const remaining = max - referenceImages.length;
     if (remaining <= 0) { 
       setError(`当前模型最多支持 ${max} 张参考图`); 
@@ -1408,7 +1441,7 @@ const App = () => {
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
             body: JSON.stringify({ 
                 model: OPTIMIZER_MODEL, 
-                messages: messages,
+                messages: messages, 
                 max_tokens: 2000 
             })
         });
@@ -1471,7 +1504,7 @@ const App = () => {
                 <button 
                     key={item}
                     onClick={() => toggleStyle(item, items, isMulti)}
-                    className={`py-1.5 px-1 border-2 border-black text-sm font-bold transition-all duration-200 truncate ${
+                    className={`py-1 px-1 border-2 border-black text-base font-bold transition-all duration-200 truncate ${
                         tempSelectedStyles.includes(item) 
                         ? 'bg-brand-yellow text-black' 
                         : 'bg-white hover:bg-brand-cream text-slate-700 hover:text-black'
@@ -1556,17 +1589,6 @@ const App = () => {
         newCats.push(editingLibraryCategory);
         newCats.sort();
         changed = true;
-    }
-
-    if (oldCategory && oldCategory !== editingLibraryCategory) {
-        const isStillUsed = updated.some(p => p.category === oldCategory);
-        if (!isStillUsed) {
-            newCats = newCats.filter(c => c !== oldCategory);
-            changed = true;
-            if (selectedCategory === oldCategory) {
-                setSelectedCategory('全部');
-            }
-        }
     }
 
     if (changed) {
@@ -2476,7 +2498,7 @@ const App = () => {
                              {/* Component 1: Character Image (Motion Control) OR Video (Lip Sync) */}
                              {selectedKlingModel === 'kling-motion-control' ? (
                                 <div className="relative border-2 border-black bg-white brutalist-shadow-sm group hover:-translate-y-1 transition-transform h-full flex flex-col">
-                                    <div className="bg-brand-yellow border-b-2 border-black px-2 py-1 flex justify-between items-center">
+                                    <div className="bg-brand-purple text-white border-b-2 border-black px-2 py-1 flex justify-between items-center">
                                         <span className="text-xs font-bold uppercase flex items-center gap-1"><User className="w-3 h-3"/> 人物参考 (Character)</span>
                                         {referenceImages.length > 0 && (
                                             <button onClick={(e) => {e.stopPropagation(); setReferenceImages([])}} className="bg-brand-red text-white p-0.5 border border-black hover:scale-110"><X className="w-3 h-3"/></button>
@@ -2505,9 +2527,9 @@ const App = () => {
                                             </div>
                                         ) : (
                                             <label className="flex flex-col items-center justify-center w-full h-full cursor-pointer hover:bg-slate-50 transition-colors gap-2">
-                                                <Plus className="w-8 h-8 text-slate-300" />
-                                                <span className="text-[10px] font-bold text-slate-400 uppercase">点击上传 (Upload)</span>
-                                                <span className="text-[9px] text-slate-300">JPG/PNG, &gt;300px</span>
+                                                <Plus className="w-8 h-8 text-black" />
+                                                <span className="text-[10px] font-bold text-black uppercase">点击上传 (Upload)</span>
+                                                <span className="text-[9px] text-black">JPG/PNG, &gt;300px</span>
                                                 <input type="file" accept=".jpg, .jpeg, .png" className="hidden" onChange={handleImageUpload} />
                                             </label>
                                         )}
@@ -2516,7 +2538,7 @@ const App = () => {
                              ) : (
                                 // For Lip Sync: Video is the Source
                                 <div className="relative border-2 border-black bg-white brutalist-shadow-sm group hover:-translate-y-1 transition-transform h-full flex flex-col">
-                                    <div className="bg-brand-blue text-white border-b-2 border-black px-2 py-1 flex justify-between items-center">
+                                    <div className="bg-brand-purple text-white border-b-2 border-black px-2 py-1 flex justify-between items-center">
                                         <span className="text-xs font-bold uppercase flex items-center gap-1"><Video className="w-3 h-3"/> 视频素材 (Source)</span>
                                         {referenceVideo && (
                                             <button onClick={(e) => {e.stopPropagation(); setReferenceVideo(null)}} className="bg-brand-red text-white p-0.5 border border-black hover:scale-110"><X className="w-3 h-3"/></button>
@@ -2534,9 +2556,9 @@ const App = () => {
                                             />
                                         ) : (
                                             <label className="flex flex-col items-center justify-center w-full h-full cursor-pointer hover:bg-slate-50 transition-colors gap-2">
-                                                <Plus className="w-8 h-8 text-slate-300" />
-                                                <span className="text-[10px] font-bold text-slate-400 uppercase">点击上传 (Upload)</span>
-                                                <span className="text-[9px] text-slate-300">MP4, 3-60s</span>
+                                                <Plus className="w-8 h-8 text-black" />
+                                                <span className="text-[10px] font-bold text-black uppercase">点击上传 (Upload)</span>
+                                                <span className="text-[9px] text-black">MP4, 3-60s</span>
                                                 <input type="file" accept="video/mp4,video/quicktime" className="hidden" onChange={handleVideoUpload} />
                                             </label>
                                         )}
@@ -2583,9 +2605,9 @@ const App = () => {
                                             </div>
                                         ) : (
                                             <label className="flex flex-col items-center justify-center w-full h-full cursor-pointer hover:bg-slate-50 transition-colors gap-2">
-                                                <Plus className="w-8 h-8 text-slate-300" />
-                                                <span className="text-[10px] font-bold text-slate-400 uppercase">点击上传 (Upload)</span>
-                                                <span className="text-[9px] text-slate-300">MP4, 3-30s</span>
+                                                <Plus className="w-8 h-8 text-black" />
+                                                <span className="text-[10px] font-bold text-black uppercase">点击上传 (Upload)</span>
+                                                <span className="text-[9px] text-black">MP4, 3-30s</span>
                                                 <input type="file" accept="video/mp4,video/quicktime" className="hidden" onChange={handleVideoUpload} />
                                             </label>
                                         )}
@@ -2594,7 +2616,7 @@ const App = () => {
                              ) : (
                                 // For Lip Sync: Audio is the Driver
                                 <div className="relative border-2 border-black bg-white brutalist-shadow-sm group hover:-translate-y-1 transition-transform h-full flex flex-col">
-                                    <div className="bg-brand-green text-black border-b-2 border-black px-2 py-1 flex justify-between items-center">
+                                    <div className="bg-brand-blue text-white border-b-2 border-black px-2 py-1 flex justify-between items-center">
                                         <span className="text-xs font-bold uppercase flex items-center gap-1"><Music className="w-3 h-3"/> 配音音频 (Driver)</span>
                                         {referenceAudio && (
                                             <button onClick={(e) => {e.stopPropagation(); setReferenceAudio(null)}} className="bg-brand-red text-white p-0.5 border border-black hover:scale-110"><X className="w-3 h-3"/></button>
@@ -2611,9 +2633,9 @@ const App = () => {
                                             </div>
                                         ) : (
                                             <label className="flex flex-col items-center justify-center w-full h-full cursor-pointer hover:bg-slate-50 transition-colors gap-2">
-                                                <Plus className="w-8 h-8 text-slate-300" />
-                                                <span className="text-[10px] font-bold text-slate-400 uppercase">点击上传 (Upload)</span>
-                                                <span className="text-[9px] text-slate-300">MP3/WAV, 2-60s</span>
+                                                <Plus className="w-8 h-8 text-black" />
+                                                <span className="text-[10px] font-bold text-black uppercase">点击上传 (Upload)</span>
+                                                <span className="text-[9px] text-black">MP3/WAV, 2-60s</span>
                                                 <input type="file" accept="audio/*" className="hidden" onChange={handleAudioUpload} />
                                             </label>
                                         )}
@@ -2634,21 +2656,21 @@ const App = () => {
                                                 onClick={() => setKlingOrientation('video')}
                                                 className={`flex-1 py-1.5 text-xs font-bold transition-colors ${klingOrientation === 'video' ? 'bg-brand-yellow text-black' : 'hover:bg-slate-100'}`}
                                             >
-                                                与视频一致 (Video)
+                                                与视频一致
                                             </button>
                                             <div className="w-0.5 bg-black"></div>
                                             <button 
                                                 onClick={() => setKlingOrientation('image')}
                                                 className={`flex-1 py-1.5 text-xs font-bold transition-colors ${klingOrientation === 'image' ? 'bg-brand-yellow text-black' : 'hover:bg-slate-100'}`}
                                             >
-                                                与图片一致 (Image)
+                                                与图片一致
                                             </button>
                                         </div>
                                     </div>
                                     
                                     <div className="flex-1 space-y-1">
                                         <label className={labelClass}>音频设置 AUDIO</label>
-                                        <label className={`flex items-center justify-center gap-2 cursor-pointer border-2 border-black p-1.5 brutalist-shadow-sm transition-all h-[32px] ${klingKeepSound ? 'bg-brand-green text-black' : 'bg-white hover:bg-slate-50'}`}>
+                                        <label className={`flex items-center justify-center gap-2 cursor-pointer border-2 border-black py-1.5 px-2 brutalist-shadow-sm transition-all ${klingKeepSound ? 'bg-brand-yellow text-black' : 'bg-white hover:bg-slate-50'}`}>
                                             <input type="checkbox" checked={klingKeepSound} onChange={(e) => setKlingKeepSound(e.target.checked)} className="hidden" />
                                             <span className="text-xs font-bold uppercase flex items-center gap-1">
                                                 {klingKeepSound ? <Volume2 className="w-3 h-3"/> : <VolumeX className="w-3 h-3"/>}
@@ -2657,18 +2679,17 @@ const App = () => {
                                         </label>
                                     </div>
                                     </div>
-                                    <div className="text-[10px] text-slate-500 italic bg-white border border-black p-2 leading-relaxed">
+                                    <div className="text-xs text-black font-normal italic leading-relaxed mt-2">
                                         <span className="font-bold text-brand-red">注意：</span>
                                         <ul className="list-disc pl-4 mt-1 space-y-0.5">
                                             <li>人物图：全身/半身，占比&gt;5%，避免遮挡。</li>
                                             <li>视频：写实风格，单人，动作清晰，无镜头切换。</li>
-                                            <li>时长限制：朝向跟随视频(≤30s)，跟随图片(≤10s)。</li>
-                                            <li>视频超过100MB或图片上传慢，系统将自动使用图床加速。</li>
+                                            <li>生成时长限制：人物朝向跟随视频(≤30s)，人物跟随图片(≤10s)。</li>
                                         </ul>
                                     </div>
                                 </>
                             ) : (
-                                <div className="text-[10px] text-slate-500 italic bg-white border border-black p-2 leading-relaxed">
+                                <div className="text-xs text-black font-normal italic leading-relaxed mt-2">
                                      <span className="font-bold text-brand-red">注意：</span>
                                      <ul className="list-disc pl-4 mt-1 space-y-0.5">
                                         <li>视频：清晰可见人脸，1080p/720p，时长2s-60s。</li>
@@ -2682,7 +2703,7 @@ const App = () => {
                   ) : (
                       <>
                           <div className="flex justify-between items-center mb-1">
-                              <h3 className={labelClass}>参考底稿 (可选) {(!isVideoMode && !isKlingMode) ? '' : `(限${isKlingMode ? (selectedKlingModel === 'kling-avatar-image2video' || selectedKlingModel === 'kling-motion-control' ? '1' : '2') : ((selectedVideoModel.startsWith('veo') || selectedVideoModel.startsWith('grok')) ? '2' : '1')}张)`}</h3>
+                              <h3 className={labelClass}>参考底稿 (可选) {(!isVideoMode && !isKlingMode) ? '' : `(限${isKlingMode ? (selectedKlingModel === 'kling-avatar-image2video' || selectedKlingModel === 'kling-motion-control' ? '1' : (selectedKlingModel === 'kling-video' && isSyncAudio ? '1' : '2')) : ((selectedVideoModel.startsWith('veo') || selectedVideoModel.startsWith('grok')) ? '2' : '1')}张)`}</h3>
                               {referenceImages.length > 0 && <span className="text-brand-green text-[10px] font-normal flex items-center gap-1"><Check className="w-3 h-3"/> READY</span>}
                           </div>
                           
@@ -2704,7 +2725,7 @@ const App = () => {
                                         </button>
                                         </div>
                                     ))}
-                                    {((!isVideoMode && !isKlingMode ? referenceImages.length < (currentImageModel?.maxImages || 4) : referenceImages.length < (isKlingMode ? (selectedKlingModel === 'kling-avatar-image2video' || selectedKlingModel === 'kling-motion-control' ? 1 : 2) : ((selectedVideoModel.startsWith('veo') || selectedVideoModel.startsWith('grok')) ? 2 : 1)))) && (
+                                    {((!isVideoMode && !isKlingMode ? referenceImages.length < (currentImageModel?.maxImages || 4) : referenceImages.length < (isKlingMode ? (selectedKlingModel === 'kling-avatar-image2video' || selectedKlingModel === 'kling-motion-control' ? 1 : (selectedKlingModel === 'kling-video' && isSyncAudio ? 1 : 2)) : ((selectedVideoModel.startsWith('veo') || selectedVideoModel.startsWith('grok')) ? 2 : 1)))) && (
                                         <label className="w-24 h-24 border-2 border-black flex items-center justify-center cursor-pointer bg-white brutalist-shadow-sm">
                                         <Plus className="w-6 h-6" /><input type="file" multiple={!isVideoMode && !isKlingMode} accept=".jpg, .jpeg, .png" className="hidden" onChange={handleImageUpload} />
                                         </label>
@@ -2814,6 +2835,15 @@ const App = () => {
                   </select>
                 </div>
 
+                {isKlingMode && selectedKlingModel !== 'kling-avatar-image2video' && selectedKlingModel !== 'kling-motion-control' && selectedKlingModel !== 'kling-advanced-lip-sync' && (
+                    <div className="space-y-1 mt-2">
+                       <label className="flex items-center gap-2 cursor-pointer bg-white border-2 border-black p-2 brutalist-shadow-sm hover:translate-y-0.5 hover:shadow-none transition-all">
+                           <input type="checkbox" checked={isSyncAudio} onChange={(e) => setIsSyncAudio(e.target.checked)} className="w-4 h-4 accent-black" />
+                           <span className="text-xs font-bold uppercase flex items-center gap-1"><Mic className="w-3 h-3"/> 音画同步 / AUDIO SYNC</span>
+                       </label>
+                    </div>
+                )}
+
                 {!isVideoMode && !isKlingMode && currentImageModel && (
                   <div className="grid grid-cols-2 gap-2.5">
                     <div className="space-y-1">
@@ -2840,7 +2870,7 @@ const App = () => {
                                     <select 
                                         value={klingOptionIdx} 
                                         onChange={(e) => setKlingOptionIdx(parseInt(e.target.value))} 
-                                        className={selectClass}
+                                        className={`${selectClass} h-[34px]`}
                                         disabled={selectedKlingModel === 'kling-advanced-lip-sync'} // Lip sync has no mode options yet
                                     >
                                         {(isKlingMode && (selectedKlingModel === 'kling-avatar-image2video' || selectedKlingModel === 'kling-motion-control')) ? (
@@ -2909,15 +2939,6 @@ const App = () => {
                             <input type="range" min="1" max={isKlingMode ? "4" : "10"} value={generationCount} onChange={(e) => setGenerationCount(parseInt(e.target.value))} className="flex-1 accent-black h-4" />
                             <span className="font-normal text-black text-xs">{generationCount}</span>
                         </div>
-                    </div>
-                )}
-
-                {isKlingMode && selectedKlingModel !== 'kling-avatar-image2video' && selectedKlingModel !== 'kling-motion-control' && selectedKlingModel !== 'kling-advanced-lip-sync' && (
-                    <div className="space-y-1">
-                       <label className="flex items-center gap-2 cursor-pointer bg-white border-2 border-black p-2 brutalist-shadow-sm hover:translate-y-0.5 hover:shadow-none transition-all">
-                           <input type="checkbox" checked={isSyncAudio} onChange={(e) => setIsSyncAudio(e.target.checked)} className="w-4 h-4 accent-black" />
-                           <span className="text-xs font-bold uppercase flex items-center gap-1"><Mic className="w-3 h-3"/> 音画同步 / AUDIO SYNC</span>
-                       </label>
                     </div>
                 )}
 
@@ -3394,7 +3415,7 @@ const App = () => {
       {activeModal === 'styles' && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-2 md:p-4">
           <div className="w-[900px] max-w-full bg-white border-4 border-black brutalist-shadow animate-in zoom-in-95 relative flex flex-col max-h-[85vh]">
-            <ModalHeader title="风格与镜头 / STYLES & CAMERA" icon={Palette} onClose={() => setActiveModal(null)} bgColor="bg-brand-blue" />
+            <ModalHeader title="风格与镜头 / STYLES & CAMERA" icon={Palette} onClose={() => setActiveModal(null)} />
             <div className="flex-1 p-4 md:p-5 overflow-y-auto no-scrollbar bg-[#f8fafc]">
               
               {renderStyleSection('艺术风格 (Art Styles)', STYLES.map(s => s.zh), false)}
@@ -3408,9 +3429,8 @@ const App = () => {
               {renderStyleSection('画面 (Composition)', COMPOSITION_STYLES, true)}
               {renderStyleSection('氛围 (Atmosphere)', ATMOSPHERE_STYLES, true)}
             </div>
-            <div className="p-3 border-t-4 border-black bg-brand-cream flex justify-between items-center flex-shrink-0">
-              <p className="text-[10px] font-bold text-slate-500 italic uppercase">点击标签即可选中，点击完成添加到提示词尾部</p>
-              <button onClick={applyStyles} className="px-6 py-2 bg-black text-white border-2 border-black font-bold uppercase tracking-tighter italic text-xs brutalist-shadow-sm hover:translate-y-1 hover:shadow-none transition-all">
+            <div className="p-3 border-t-4 border-black bg-brand-cream flex justify-end items-center flex-shrink-0">
+              <button onClick={applyStyles} className="px-6 py-2 bg-brand-red text-white border-2 border-black font-bold uppercase tracking-tighter italic text-xs brutalist-shadow-sm hover:translate-y-1 hover:shadow-none transition-all">
                 完成 / DONE
               </button>
             </div>
@@ -3421,7 +3441,7 @@ const App = () => {
       {activeModal === 'library' && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
           <div className="w-[1000px] h-[80vh] bg-white border-4 border-black brutalist-shadow animate-in zoom-in-95 relative flex flex-col">
-            <ModalHeader title="提示词库 / PROMPT LIBRARY" icon={Bookmark} onClose={() => setActiveModal(null)} bgColor="bg-[#A855F7]" />
+            <ModalHeader title="提示词库 / PROMPT LIBRARY" icon={Bookmark} onClose={() => setActiveModal(null)} />
             
             <div className="flex-1 flex overflow-hidden min-h-0">
                 {/* Sidebar */}
@@ -3438,12 +3458,12 @@ const App = () => {
                   )}
 
                   <div className="space-y-1">
-                      <button onClick={() => setSelectedCategory('全部')} className={`w-full text-left px-3 py-2 font-bold text-sm border-2 transition-all flex justify-between items-center ${selectedCategory === '全部' ? 'bg-black text-white border-black' : 'bg-transparent border-transparent hover:bg-white hover:border-black'}`}>
+                      <button onClick={() => setSelectedCategory('全部')} className={`w-full text-left px-3 py-2 font-bold text-sm border-2 transition-all flex justify-between items-center ${selectedCategory === '全部' ? 'bg-brand-yellow text-black border-black' : 'bg-transparent border-transparent hover:bg-white hover:border-black'}`}>
                         <span>全部 (ALL)</span>
                         {selectedCategory === '全部' && <Check className="w-3 h-3"/>}
                       </button>
                       {categories.map(cat => (
-                        <div key={cat} onClick={() => setSelectedCategory(cat)} className={`group w-full text-left px-3 py-2 font-bold text-sm border-2 transition-all flex justify-between items-center cursor-pointer ${selectedCategory === cat ? 'bg-black text-white border-black' : 'bg-transparent border-transparent hover:bg-white hover:border-black'}`}>
+                        <div key={cat} onClick={() => setSelectedCategory(cat)} className={`group w-full text-left px-3 py-2 font-bold text-sm border-2 transition-all flex justify-between items-center cursor-pointer ${selectedCategory === cat ? 'bg-brand-yellow text-black border-black' : 'bg-transparent border-transparent hover:bg-white hover:border-black'}`}>
                             {renamingCat === cat ? (
                                 <input autoFocus value={renameInput} onClick={e => e.stopPropagation()} onChange={e => setRenameInput(e.target.value)} onBlur={handleFinishRenameCat} onKeyDown={e => e.key === 'Enter' && handleFinishRenameCat()} className="w-full bg-white text-black text-xs p-1 outline-none" />
                             ) : (
@@ -3501,10 +3521,10 @@ const App = () => {
                                       )}
                                       <div className="flex-1 min-w-0 space-y-2">
                                           <div className="flex justify-between items-start">
-                                            <h4 className="font-bold text-sm truncate pr-2">{p.name}</h4>
+                                            <h4 className="font-bold text-base truncate pr-2">{p.name}</h4>
                                             <span className="text-[10px] font-bold bg-slate-100 px-1.5 py-0.5 border border-black uppercase whitespace-nowrap">{p.category}</span>
                                           </div>
-                                          <p className="text-xs text-slate-500 line-clamp-2 cursor-pointer hover:text-black transition-colors leading-relaxed" onClick={() => usePromptFromLibrary(p.text)} title={p.text}>{p.text}</p>
+                                          <p className="text-sm text-slate-500 line-clamp-2 cursor-pointer hover:text-black transition-colors leading-relaxed" onClick={() => usePromptFromLibrary(p.text)} title={p.text}>{p.text}</p>
                                           
                                           <div className="flex items-center gap-4 pt-1">
                                             <button onClick={() => usePromptFromLibrary(p.text)} className="flex items-center gap-1 text-[10px] font-bold text-slate-400 hover:text-brand-green uppercase transition-colors"><Check className="w-3 h-3"/> 使用</button>
@@ -3535,7 +3555,7 @@ const App = () => {
       {activeModal === 'save-prompt-confirm' && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
            <div className="w-[400px] bg-white border-4 border-black brutalist-shadow animate-in zoom-in-95 relative">
-              <ModalHeader title="保存提示词" icon={Save} onClose={() => setActiveModal(null)} bgColor="bg-[#F472B6]" />
+              <ModalHeader title="保存提示词" icon={Save} onClose={() => setActiveModal(null)} />
               <div className="p-6 space-y-4">
                  <div className="space-y-1">
                     <label className="font-bold text-xs uppercase block">Name (名称)</label>
