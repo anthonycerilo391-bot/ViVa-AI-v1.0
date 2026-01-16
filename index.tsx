@@ -171,6 +171,24 @@ const MODELS: ModelDefinition[] = [
 
 const VIDEO_MODELS = [
   { 
+    id: 'veo_3_1-fast-4K', 
+    name: 'VEO 3.1 FAST 4K', 
+    desc: '4K/高清/音视', 
+    supportedAspectRatios: ['16:9', '9:16'],
+    options: [
+      {s: '8', q: '4K'}
+    ] 
+  },
+  { 
+    id: 'veo_3_1-fast-components-4K', 
+    name: 'VEO 3.1 多图融合 4K', 
+    desc: '3垫图/4K', 
+    supportedAspectRatios: ['16:9', '9:16'],
+    options: [
+      {s: '8', q: '4K'}
+    ] 
+  },
+  { 
     id: 'sora-2-all', 
     name: 'Sora-2-All', 
     desc: '标清视频', 
@@ -1013,7 +1031,8 @@ const App = () => {
               max = 2;
           }
       } else {
-          max = (selectedVideoModel.startsWith('veo') || selectedVideoModel.startsWith('grok')) ? 2 : 1;
+          if (selectedVideoModel === 'veo_3_1-fast-components-4K') max = 3;
+          else max = (selectedVideoModel.startsWith('veo') || selectedVideoModel.startsWith('grok')) ? 2 : 1;
       }
 
       if (referenceImages.length <= max) {
@@ -1223,7 +1242,7 @@ const App = () => {
         let key = (configRef.current.apiKey || safeEnvKey).trim();
         if (!key || !taskId) { clearInterval(interval); return; }
         try {
-            const isVeoGrokJimeng = modelId.startsWith('veo') || modelId.startsWith('grok') || modelId.startsWith('jimeng') || modelId.startsWith('kling');
+            const isVeoGrokJimeng = (modelId.startsWith('veo') && !modelId.includes('4K')) || modelId.startsWith('grok') || modelId.startsWith('jimeng') || modelId.startsWith('kling');
             const url = isVeoGrokJimeng ? `${configRef.current.baseUrl}/v1/video/query?id=${taskId}` : `${configRef.current.baseUrl}/v1/videos/${taskId}`;
             
             const res = await fetch(url, { headers: { 'Authorization': `Bearer ${key}`, 'Accept': 'application/json' } });
@@ -1293,7 +1312,8 @@ const App = () => {
             max = 2;
         }
     } else {
-        max = (selectedVideoModel.startsWith('veo') || selectedVideoModel.startsWith('grok')) ? 2 : 1;
+        if (selectedVideoModel === 'veo_3_1-fast-components-4K') max = 3;
+        else max = (selectedVideoModel.startsWith('veo') || selectedVideoModel.startsWith('grok')) ? 2 : 1;
     }
 
     const remaining = max - referenceImages.length;
@@ -1944,7 +1964,7 @@ const App = () => {
     try {
         const createOne = async (pId: string) => {
             let response;
-            const isVeoModel = tModelId.startsWith('veo');
+            const isVeoModel = tModelId.startsWith('veo') && !tModelId.includes('4K');
             const isGrokModel = tModelId.startsWith('grok');
             const isJimengModel = tModelId.startsWith('jimeng');
             
@@ -2155,14 +2175,16 @@ const App = () => {
                 formData.append('watermark', 'false');
                 
                 if (tRefs && tRefs.length > 0) {
-                    const img = tRefs[0];
-                    let blob: Blob | null = null;
-                    if (img.data.startsWith('http')) {
-                        blob = await urlToBlob(img.data);
-                    } else {
-                        blob = base64ToBlob(img.data, img.mimeType);
+                    for (let i = 0; i < tRefs.length; i++) {
+                         const img = tRefs[i];
+                         let blob: Blob | null = null;
+                         if (img.data.startsWith('http')) {
+                             blob = await urlToBlob(img.data);
+                         } else {
+                             blob = base64ToBlob(img.data, img.mimeType);
+                         }
+                         if (blob) formData.append('input_reference', blob, `reference_${i}.png`);
                     }
-                    if (blob) formData.append('input_reference', blob, 'reference.png');
                 }
                 response = await fetch(`${config.baseUrl}/v1/videos`, { method: 'POST', headers: { 'Authorization': `Bearer ${key}` }, body: formData });
             }
@@ -2783,7 +2805,7 @@ const App = () => {
                               <h3 className={labelClass}>
                                   {isKlingMode && selectedKlingModel === 'kling-advanced-lip-sync' 
                                     ? "视频素材 (Source)" 
-                                    : `参考底稿 (可选) ${(!isVideoMode && !isKlingMode) ? '' : `(限${isKlingMode ? (selectedKlingModel === 'kling-avatar-image2video' || selectedKlingModel === 'kling-motion-control' ? '1' : (selectedKlingModel === 'kling-video' && isSyncAudio ? '1' : '2')) : ((selectedVideoModel.startsWith('veo') || selectedVideoModel.startsWith('grok')) ? '2' : '1')}张)`}`}
+                                    : `参考底稿 (可选) ${(!isVideoMode && !isKlingMode) ? '' : `(限${isKlingMode ? (selectedKlingModel === 'kling-avatar-image2video' || selectedKlingModel === 'kling-motion-control' ? '1' : (selectedKlingModel === 'kling-video' && isSyncAudio ? '1' : '2')) : ((selectedVideoModel === 'veo_3_1-fast-components-4K' ? '3' : (selectedVideoModel.startsWith('veo') || selectedVideoModel.startsWith('grok')) ? '2' : '1'))}张)`}`}
                               </h3>
                               {((referenceImages.length > 0) || (referenceVideo && isKlingMode && selectedKlingModel === 'kling-advanced-lip-sync')) && <span className="text-brand-green text-[10px] font-normal flex items-center gap-1"><Check className="w-3 h-3"/> READY</span>}
                           </div>
@@ -2837,7 +2859,7 @@ const App = () => {
                                             </button>
                                             </div>
                                         ))}
-                                        {((!isVideoMode && !isKlingMode ? referenceImages.length < (currentImageModel?.maxImages || 4) : referenceImages.length < (isKlingMode ? (selectedKlingModel === 'kling-avatar-image2video' || selectedKlingModel === 'kling-motion-control' ? 1 : (selectedKlingModel === 'kling-video' && isSyncAudio ? 1 : 2)) : ((selectedVideoModel.startsWith('veo') || selectedVideoModel.startsWith('grok')) ? 2 : 1)))) && (
+                                        {((!isVideoMode && !isKlingMode ? referenceImages.length < (currentImageModel?.maxImages || 4) : referenceImages.length < (isKlingMode ? (selectedKlingModel === 'kling-avatar-image2video' || selectedKlingModel === 'kling-motion-control' ? 1 : (selectedKlingModel === 'kling-video' && isSyncAudio ? 1 : 2)) : (selectedVideoModel === 'veo_3_1-fast-components-4K' ? 3 : (selectedVideoModel.startsWith('veo') || selectedVideoModel.startsWith('grok')) ? 2 : 1)))) && (
                                             <label className="w-24 h-24 border-2 border-black flex items-center justify-center cursor-pointer bg-white brutalist-shadow-sm">
                                             <Plus className="w-6 h-6" /><input type="file" multiple={!isVideoMode && !isKlingMode} accept=".jpg, .jpeg, .png" className="hidden" onChange={handleImageUpload} />
                                             </label>
@@ -2849,6 +2871,12 @@ const App = () => {
                                         {isKlingMode && selectedKlingModel === 'kling-motion-control' ? "添加人物图" : "上传图片/UPLOAD"}
                                     </label>
                                 )
+                            )}
+
+                            {isVideoMode && (
+                                <div className="text-xs text-brand-red font-normal mt-1">
+                                    Sora2请勿上传真人，Veo请勿上传未成年
+                                </div>
                             )}
                             
                             {/* Audio Upload for Avatar AND Lip Sync */}
@@ -3427,7 +3455,8 @@ const App = () => {
                         功能更新
                     </h3>
                     <p className="text-sm font-bold text-slate-700 leading-relaxed italic">
-                        1、新增Gemini TTS语音合成板块。
+                        1、新增Gemini TTS语音合成板块。<br/>
+                        2、增加视频模型veo 3.1 4K,veo 3.1多图融合 4K
                     </p>
                  </div>
               </div>
@@ -3574,6 +3603,8 @@ const App = () => {
                   items: [
                     { m: 'VEO 3.1 FAST', p: '0.11元/条' },
                     { m: 'VEO 3.1 PRO', p: '2.45元/条' },
+                    { m: 'VEO 3.1 FAST 4K', p: '0.181元/条' },
+                    { m: 'VEO 3.1 多图融合 4K', p: '0.361元/条' },
                     { m: 'Jimeng Video 3.0', p: '0.266元/条' },
                     { m: 'Sora-2-All', p: '0.08元/条' },
                     { m: 'Sora-2-Pro-All', p: '2.52元/条' },
@@ -3924,5 +3955,8 @@ const App = () => {
   );
 };
 
-const root = createRoot(document.getElementById('root')!);
-root.render(<App />);
+const container = document.getElementById('root');
+if (container) {
+  const root = createRoot(container);
+  root.render(<App />);
+}
