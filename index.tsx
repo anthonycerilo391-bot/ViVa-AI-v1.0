@@ -124,7 +124,7 @@ const JIMENG_RATIOS = ['1:1', '3:4', '4:3', '9:16', '16:9', '21:9'];
 const MODELS: ModelDefinition[] = [
   { 
     id: 'gemini-2.5-flash-image', 
-    name: 'NANO BANANA', 
+    name: 'Gemini-2.5-Flash-Image', 
     cost: 'Flash',
     features: ['fast', 'multimodal'],
     maxImages: 4,
@@ -133,7 +133,7 @@ const MODELS: ModelDefinition[] = [
   },
   { 
     id: 'gemini-3-pro-image-preview', 
-    name: 'Nano Banana Pro', 
+    name: 'Gemini-3-Pro-Image', 
     cost: 'Pro',
     features: ['hd'],
     maxImages: 8,
@@ -1011,15 +1011,15 @@ const PRICE_DATA = [
   {
     category: 'AI对话',
     items: [
-      { m: 'Gemini-3-pro-preview', p: '提示1.20/ 1M tokens，补全7.20/ 1M tokens' },
-      { m: 'GPT-5-mini', p: '提示0.15/ 1M tokens，补全1.20/ 1M tokens' }
+      { m: 'Gemini-3-Pro-Preview', p: '提示1.20/ 1M tokens，补全7.20/ 1M tokens' },
+      { m: 'GPT-5-Mini', p: '提示0.15/ 1M tokens，补全1.20/ 1M tokens' }
     ]
   },
   {
     category: '图片创作',
     items: [
-      { m: 'Nano Banana', p: '0.06元/张' },
-      { m: 'Nano Banana Pro', p: '1K/2K 0.14元/张，4K 0.25元/张' },
+      { m: 'Gemini-2.5-Flash-Image', p: '0.06元/张' },
+      { m: 'Gemini-3-Pro-Image', p: '1K/2K 0.14元/张，4K 0.25元/张' },
       { m: 'KLING Image O1', p: '0.24元/张' },
       { m: 'GPT Image 1', p: '0.06元/张' },
       { m: 'GPT Image 1.5', p: '0.06元/张' },
@@ -2702,7 +2702,7 @@ const App = () => {
              <Bot className="w-10 h-10 text-black" strokeWidth={2} />
           </div>
 
-          <div className="flex md:flex-col items-center gap-2 md:gap-4 w-full overflow-x-auto md:overflow-visible no-scrollbar px-4 md:px-0 py-4 md:py-6 md:flex-1 md:border-r border-black">
+          <div className="flex md:flex-col items-center gap-2 md:gap-4 w-full overflow-x-auto md:overflow-visible no-scrollbar px-4 md:px-0 py-4 md:py-6 md:flex-1 md:border-r-2 border-black">
               {[
                   { id: 'chat', icon: MessageSquare, label: '对话', action: () => { setMainCategory('chat'); resetInputState(); }, active: mainCategory === 'chat' },
                   { id: 'image', icon: ImageIcon, label: '绘画', action: () => { setMainCategory('image'); resetInputState(); }, active: mainCategory === 'image' },
@@ -2727,7 +2727,7 @@ const App = () => {
               ))}
           </div>
 
-          <div className="hidden md:flex flex-col items-center mb-6 mt-auto w-full md:border-r border-black pt-4">
+          <div className="hidden md:flex flex-col items-center mb-6 mt-auto w-full md:border-r-2 border-black pt-4">
             <button 
                 onClick={() => setIsSidebarOpen(!isSidebarOpen)}
                 className="w-8 h-8 flex items-center justify-center border border-black bg-white hover:bg-brand-yellow transition-all rounded-full brutalist-shadow-sm hover:shadow-none"
@@ -3495,7 +3495,7 @@ const App = () => {
                    data-asset-id={asset.id} 
                    data-asset-card="true" 
                    onClick={(e) => toggleAssetSelection(asset.id, e)}
-                   className={`group bg-white border border-black brutalist-shadow transition-all hover:-translate-y-1 cursor-pointer relative ${selectedAssetIds.has(asset.id) ? 'border-brand-blue ring-4 ring-brand-blue/30' : ''}`}>
+                   className={`group bg-white border-2 border-black brutalist-shadow transition-all hover:-translate-y-1 cursor-pointer relative ${selectedAssetIds.has(asset.id) ? 'border-brand-blue ring-4 ring-brand-blue/30' : ''}`}>
                 
                 <button 
                   onClick={(e) => handleAssetDelete(asset.id, e)} 
@@ -3505,7 +3505,7 @@ const App = () => {
                   <Trash2 className="w-4 h-4" />
                 </button>
 
-                <div className="aspect-square bg-slate-100 border-b border-black relative overflow-hidden">
+                <div className="aspect-square bg-slate-100 border-b-2 border-black relative overflow-hidden">
                   {(asset.status === 'loading' || asset.status === 'queued' || asset.status === 'processing') ? (
                      <div className="w-full h-full flex flex-col items-center justify-center p-8 bg-slate-50 animate-pulse">
                         <Loader2 className="w-12 h-12 mb-4 animate-spin text-brand-black" />
