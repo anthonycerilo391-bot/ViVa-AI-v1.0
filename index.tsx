@@ -179,6 +179,7 @@ const MODELS: ModelDefinition[] = [
 ];
 
 const CHAT_MODELS = [
+    { id: 'gemini-3-flash-preview', name: 'Gemini 3 Flash' },
     { id: 'gemini-3-pro-preview', name: 'Gemini 3 Pro' },
     { id: 'gpt-5-mini', name: 'GPT 5 Mini' },
 ];
@@ -985,6 +986,7 @@ const PRICE_DATA = [
   {
     category: 'AI对话',
     items: [
+      { m: 'Gemini-3-Flash-Preview', p: '提示0.3000/ 1M tokens，补全1.26/ 1M tokens' },
       { m: 'Gemini-3-Pro-Preview', p: '提示1.20/ 1M tokens，补全7.20/ 1M tokens' },
       { m: 'GPT-5-Mini', p: '提示0.15/ 1M tokens，补全1.20/ 1M tokens' }
     ]
@@ -1074,7 +1076,7 @@ const App = () => {
   const [chatInput, setChatInput] = useState('');
   const [isChatLoading, setIsChatLoading] = useState(false);
   const [chatAttachments, setChatAttachments] = useState<{ file: File, preview: string, type: string }[]>([]);
-  const [chatModelId, setChatModelId] = useState('gemini-3-pro-preview');
+  const [chatModelId, setChatModelId] = useState('gemini-3-flash-preview');
 
   const [selectedModel, setSelectedModel] = useState(MODELS[0].id);
   const [selectedVideoModel, setSelectedVideoModel] = useState(VIDEO_MODELS[0].id);
