@@ -12,7 +12,7 @@ import {
   Paperclip, FileText, Music, Mic, Volume2,
   User, VolumeX, AudioLines, MessageSquare,
   ChevronLeft, ChevronRight, MessageSquarePlus, Zap, Eraser, ArrowUp,
-  ChevronDown, Brush, Brain, Monitor
+  ChevronDown, Brush, Brain, Monitor, ArrowDown
 } from 'lucide-react';
 
 // --- Types & Declarations ---
@@ -87,6 +87,12 @@ interface ChatMessage {
     files?: { type: string; data: string; file?: File }[];
     error?: boolean;
     isDivider?: boolean;
+}
+
+interface DialogueLine {
+  id: string;
+  speakerId: string;
+  text: string;
 }
 
 // --- Constants ---
@@ -172,7 +178,7 @@ const MODELS: ModelDefinition[] = [
     name: 'Grok 4 Image',
     cost: 'Grok',
     features: ['creative'],
-    maxImages: 4,
+    maxImages: 1,
     supportedAspectRatios: GROK_RATIOS,
     supportedResolutions: ['AUTO']
   }
@@ -1005,7 +1011,7 @@ const PRICE_DATA = [
   {
     category: '视频创作',
     items: [
-      { m: 'Sora 2', p: '0.08元/条' },
+      { m: 'Sora 2', p: 'default分组 0.14元/条，sora-vip分组 0.56元/条' },
       { m: 'VEO 3.1 Fast', p: '0.126元/条' },
       { m: 'Grok Video 3', p: '6s 0.14元/条，10s 0.28元/条' },
       { m: 'VEO 3.1 Fast 4K', p: '0.181元/条' },
@@ -1118,6 +1124,7 @@ const App = () => {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [draggedPromptIdx, setDraggedPromptIdx] = useState<number | null>(null);
   const [showSaveSuccess, setShowSaveSuccess] = useState(false);
+  const [dialogueLines, setDialogueLines] = useState<DialogueLine[]>([]);
   
   // Library State & other states...
   const [editingLibraryId, setEditingLibraryId] = useState<string | null>(null);
@@ -1163,9 +1170,50 @@ URL=${window.location.href}
     document.body.removeChild(link);
   };
 
+  const parsePromptToLines = (text: string, speakers: typeof speakerMap) => {
+      const lines: DialogueLine[] = [];
+      if (!text.trim()) return lines;
+      
+      const rawLines = text.split('\n');
+      rawLines.forEach(line => {
+          const match = line.match(/^([^:：]+)[:：]\s*(.+)$/);
+          if (match) {
+              const name = match[1].trim();
+              const content = match[2].trim();
+              const speaker = speakers.find(s => s.name === name);
+              if (speaker) {
+                  lines.push({ id: generateUUID(), speakerId: speaker.id, text: content });
+              } else {
+                  lines.push({ id: generateUUID(), speakerId: speakers[0]?.id || '1', text: content });
+              }
+          } else {
+              if (line.trim()) {
+                   if (lines.length === 0) {
+                        lines.push({ id: generateUUID(), speakerId: speakers[0]?.id || '1', text: line.trim() });
+                   } else {
+                        lines[lines.length - 1].text += '\n' + line.trim();
+                   }
+              }
+          }
+      });
+      return lines;
+  };
+
   useEffect(() => {
     configRef.current = config;
   }, [config]);
+
+  // Sync Dialogue Lines to Prompt when in Multi Audio Mode
+  useEffect(() => {
+    if (isAudioMode && audioGenMode === 'multi') {
+        const text = dialogueLines.map(line => {
+             const speaker = speakerMap.find(s => s.id === line.speakerId);
+             const name = speaker ? speaker.name : (speakerMap.length > 0 ? speakerMap[0].name : 'Unknown');
+             return `${name}：${line.text}`;
+        }).join('\n');
+        if (text !== prompt) setPrompt(text);
+    }
+  }, [dialogueLines, speakerMap]);
 
   // ... (useEffects for models remain same) ...
   useEffect(() => {
@@ -1447,6 +1495,15 @@ URL=${window.location.href}
     setReferenceVideo(null);
     setReferenceAudio(null);
     setError(null);
+    setDialogueLines([]);
+  };
+
+  const handleAudioModeChange = (mode: 'single' | 'multi') => {
+      setAudioGenMode(mode);
+      if (mode === 'multi') {
+          const lines = parsePromptToLines(prompt, speakerMap);
+          setDialogueLines(lines);
+      }
   };
 
   // ... (Other handlers are reused directly from original code) ...
@@ -1617,17 +1674,29 @@ URL=${window.location.href}
 3. 确保提示词适合Sora 2或Veo等模型理解。
 4. 仅输出提示词本身。`;
      } else if (isAudioMode) {
-       sys = `你是一位精通语音合成（TTS）的提示词优化专家。你的任务是优化用户的输入，使其包含明确的语音风格、语气、口音和语速指令，以便生成更生动的语音。
+       if (audioGenMode === 'multi') {
+           sys = `你是一位精通多角色对话剧本创作的专家。你的任务是为对话添加表演指导。
 
-请遵循以下规则：
-1. **分析意图**：分析用户输入的内容和隐含的情感。
-2. **添加指令**：在文本前添加自然语言指令，描述应采用的【风格】、【语气】、【口音】或【语速】。
-   - 格式建议：“用[形容词]的语气，[语速描述]地说：[文本内容]”
-   - 例如：“用悲伤、缓慢的语气说：为什么会这样...”
-3. **内容润色**：如果用户输入过于简单，可适当润色内容使其更适合朗读，但不要改变原意。
-4. **默认处理**：如果用户未指定风格，请根据内容自动匹配最合适的风格（如：讲故事用娓娓道来的语气，新闻用正式客观的语气）。
+请严格遵循以下规则：
+1. **保持原义**：**绝对禁止**修改、润色或改写用户的原始对话内容。必须原封不动地保留原文。
+2. **添加指导**：分析对话语境，在每一句台词内容的**最前方**添加关于【风格】、【语气】、【口音】或【节奏】的自然语言指导（使用括号包裹）。
+3. **格式要求**：
+   RoleName: (指导内容) 原始对话内容
+   RoleName: (指导内容) 原始对话内容
 
-只输出最终的优化后文本，不要包含任何解释。`;
+RoleName必须严格对应用户输入中的角色名。`;
+       } else {
+           sys = `你是一位精通语音合成（TTS）的提示词优化专家。你的任务是为用户的输入添加语音风格、语气、口音和语速指令。
+
+请严格遵循以下规则：
+1. **保持原义**：**绝对禁止**修改、润色或改写用户的原始文本内容。必须原封不动地保留原文。
+2. **前置指令**：根据文本内容分析情感，在文本的**最前方**添加自然语言指令（使用括号包裹），描述应采用的【风格】、【语气】、【口音】或【节奏】。
+   - 格式必须为：“(指令描述) [原始文本]”
+   - 例如用户输入“为什么会这样”，输出：“(用悲伤、缓慢且略带颤抖的语气说) 为什么会这样”
+   - 例如用户输入“咱们今儿个真高兴”，输出：“(用欢快、急促的节奏，带有京腔口音说) 咱们今儿个真高兴”
+
+只输出最终结果，不要包含任何解释。`;
+       }
      }
 
      try {
@@ -1662,7 +1731,16 @@ URL=${window.location.href}
         if (data.error) throw new Error(data.error.message || "Optimization Error");
 
         const optimized = data.choices?.[0]?.message?.content?.trim();
-        if (optimized) { setPrompt(optimized); setError(null); }
+        if (optimized) { 
+            if (isAudioMode && audioGenMode === 'multi') {
+                const newLines = parsePromptToLines(optimized, speakerMap);
+                setDialogueLines(newLines);
+                // Prompt will be auto-updated by useEffect
+            } else {
+                setPrompt(optimized); 
+            }
+            setError(null); 
+        }
      } catch (e: any) { setError("AI优化失败: " + (e.message || "未知错误")); } finally { setIsOptimizing(false); }
   };
 
@@ -1778,6 +1856,10 @@ URL=${window.location.href}
     if (mainCategory === 'chat') {
         setChatInput(prev => prev ? prev + '\n' + text : text);
     } else {
+        if (isAudioMode && audioGenMode === 'multi') {
+            const lines = parsePromptToLines(text, speakerMap);
+            setDialogueLines(lines);
+        }
         setPrompt(text);
     }
     setActiveModal(null);
@@ -2220,9 +2302,10 @@ URL=${window.location.href}
                 if (isKlingModel) {
                     // For other Kling models (like text2video or image2video)
                     payload.duration = parseInt(modelDef!.options[tOptIdx].s);
-                    if (tSyncAudio) {
-                        payload.sync_audio = true;
-                    }
+                }
+
+                if ((isKlingModel || isGrokModel) && tSyncAudio) {
+                    payload.sync_audio = true;
                 }
 
                 response = await fetch(`${config.baseUrl}/v1/video/create`, {
@@ -2643,7 +2726,13 @@ URL=${window.location.href}
            setMainCategory('audio');
            setSelectedAudioModel(asset.config.modelId);
            setSelectedVoice(asset.config.selectedVoice);
-           if (asset.config.audioGenMode) setAudioGenMode(asset.config.audioGenMode);
+           if (asset.config.audioGenMode) {
+               setAudioGenMode(asset.config.audioGenMode);
+               if (asset.config.audioGenMode === 'multi') {
+                   const lines = parsePromptToLines(asset.config.prompt, asset.config.speakerMap || speakerMap);
+                   setDialogueLines(lines);
+               }
+           }
            if (asset.config.speakerMap) setSpeakerMap(asset.config.speakerMap);
            executeAudioGeneration(asset.config);
         } else if (asset.config.isKlingMode) {
@@ -2857,8 +2946,8 @@ URL=${window.location.href}
                         
                         <div className="space-y-4">
                              {[
-                                { title: "视频创作体验升级", desc: "优化了视频创作体验，可灵功能已合并至视频专区，支持更多参数控制。" },
-                                { title: "界面交互优化", desc: "加大了侧边导航栏图标，优化移动端触控体验，操作更便捷。" }
+                                { title: "Grok Video 3 升级", desc: "新增10S生成时长，支持音频同步功能。" },
+                                { title: "语音功能优化", desc: "语音多人模式输入方式已优化，支持直观的剧本编辑。" }
                              ].map((item, idx) => (
                                  <div key={idx} className="group relative py-4 border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors px-2">
                                      <h4 className="font-bold text-base md:text-lg mb-2">{item.title}</h4>
@@ -3116,7 +3205,7 @@ URL=${window.location.href}
                             )}
                             
                             {/* ... (Video warning and audio upload same) */}
-                            {isVideoMode && (
+                            {isVideoMode && selectedVideoModel !== 'grok-video-3' && selectedVideoModel !== 'kling-avatar-image2video' && (
                                 <div className="text-xs text-brand-red font-normal mt-1">
                                     Sora2请勿上传真人，Veo请勿上传未成年
                                 </div>
@@ -3194,14 +3283,14 @@ URL=${window.location.href}
                     <div className="space-y-3 pt-2">
                         <div className="flex bg-white border border-black brutalist-shadow-sm">
                             <button 
-                                onClick={() => setAudioGenMode('single')}
+                                onClick={() => handleAudioModeChange('single')}
                                 className={`flex-1 py-1.5 text-xs font-normal uppercase transition-colors ${audioGenMode === 'single' ? 'bg-brand-yellow text-black' : 'hover:bg-slate-100'}`}
                             >
                                 单人 (Single)
                             </button>
                             <div className="w-px bg-black"></div>
                             <button 
-                                onClick={() => setAudioGenMode('multi')}
+                                onClick={() => handleAudioModeChange('multi')}
                                 className={`flex-1 py-1.5 text-xs font-normal uppercase transition-colors ${audioGenMode === 'multi' ? 'bg-brand-yellow text-black' : 'hover:bg-slate-100'}`}
                             >
                                 多人 (Multi)
@@ -3267,7 +3356,7 @@ URL=${window.location.href}
                     </div>
                 )}
 
-                {isVideoMode && selectedVideoModel !== 'kling-avatar-image2video' && selectedVideoModel !== 'kling-motion-control' && selectedVideoModel.startsWith('kling') && (
+                {isVideoMode && selectedVideoModel !== 'kling-avatar-image2video' && selectedVideoModel !== 'kling-motion-control' && (selectedVideoModel.startsWith('kling') || selectedVideoModel.startsWith('grok')) && (
                     <div className="space-y-1 mt-2">
                        <label className="flex items-center gap-2 cursor-pointer bg-white border border-black p-2 brutalist-shadow-sm hover:translate-y-0.5 hover:shadow-none transition-all">
                            <input type="checkbox" checked={isSyncAudio} onChange={(e) => setIsSyncAudio(e.target.checked)} className="w-4 h-4 accent-black" />
@@ -3395,7 +3484,7 @@ URL=${window.location.href}
                       <button onClick={() => setActiveModal('edit-prompt')} className="w-9 h-9 flex items-center justify-center bg-[#4ADE80] text-black border border-black font-normal text-xs brutalist-shadow-sm hover:translate-y-0.5 hover:shadow-none transition-all" title="展开">
                         <Maximize2 className="w-4 h-4"/>
                       </button>
-                      <button onClick={() => setPrompt('')} className="w-9 h-9 flex items-center justify-center bg-white text-black border border-black font-normal text-xs brutalist-shadow-sm hover:bg-brand-red hover:text-white hover:translate-y-0.5 hover:shadow-none transition-all" title="清空">
+                      <button onClick={() => { setPrompt(''); setDialogueLines([]); }} className="w-9 h-9 flex items-center justify-center bg-white text-black border border-black font-normal text-xs brutalist-shadow-sm hover:bg-brand-red hover:text-white hover:translate-y-0.5 hover:shadow-none transition-all" title="清空">
                         <Trash2 className="w-4 h-4"/>
                       </button>
                     </div>
@@ -3417,12 +3506,93 @@ URL=${window.location.href}
                   )}
 
                   <div className="relative group">
-                      <textarea 
-                          value={prompt} 
-                          onChange={(e) => setPrompt(e.target.value)} 
-                          placeholder={isAudioMode ? (audioGenMode === 'single' ? "阴森低语地说：指尖阵阵刺痛……我想定是那邪祟，正悄然近矣。" : "角色A（语气倦怠又敷衍）：行吧…… 那今天都有啥安排啊？\n角色B（语气兴奋又雀跃）：你绝对猜不到！") : "描述您的创作奇想..."} 
-                          className="w-full h-48 p-3 border border-black font-normal text-base bg-white focus:outline-none brutalist-input resize-y leading-relaxed" 
-                      />
+                      {isAudioMode && audioGenMode === 'multi' ? (
+                          <div className="flex flex-col gap-2 h-48 overflow-y-auto border border-black bg-slate-50 p-2">
+                             {dialogueLines.map((line, idx) => (
+                                 <div key={line.id} className="bg-white border border-black p-2 shadow-sm flex flex-col gap-2 animate-in slide-in-from-bottom-2 fade-in">
+                                    <div className="flex justify-between items-center bg-brand-cream border-b border-black/10 pb-1 mb-1 px-1">
+                                        <select 
+                                            value={line.speakerId} 
+                                            onChange={e => {
+                                                const newLines = [...dialogueLines];
+                                                newLines[idx].speakerId = e.target.value;
+                                                setDialogueLines(newLines);
+                                            }}
+                                            className="text-xs font-bold bg-transparent outline-none w-32 truncate"
+                                        >
+                                            {speakerMap.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                        </select>
+                                        <div className="flex gap-1 items-center">
+                                           <button 
+                                                onClick={() => {
+                                                    if (idx === 0) return;
+                                                    const newLines = [...dialogueLines];
+                                                    [newLines[idx - 1], newLines[idx]] = [newLines[idx], newLines[idx - 1]];
+                                                    setDialogueLines(newLines);
+                                                }}
+                                                disabled={idx === 0}
+                                                className="p-1 text-slate-400 hover:text-black disabled:opacity-30"
+                                            >
+                                                <ArrowUp className="w-3 h-3"/>
+                                            </button>
+                                           <button 
+                                                onClick={() => {
+                                                    if (idx === dialogueLines.length - 1) return;
+                                                    const newLines = [...dialogueLines];
+                                                    [newLines[idx + 1], newLines[idx]] = [newLines[idx], newLines[idx + 1]];
+                                                    setDialogueLines(newLines);
+                                                }}
+                                                disabled={idx === dialogueLines.length - 1}
+                                                className="p-1 text-slate-400 hover:text-black disabled:opacity-30"
+                                            >
+                                                <ArrowDown className="w-3 h-3"/>
+                                            </button>
+                                           <button 
+                                                onClick={() => setDialogueLines(dialogueLines.filter(l => l.id !== line.id))}
+                                                className="text-slate-400 hover:text-red-500 p-1 transition-colors"
+                                            >
+                                                <Trash2 className="w-3 h-3"/>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <textarea 
+                                        value={line.text} 
+                                        onChange={e => {
+                                            const newLines = [...dialogueLines];
+                                            newLines[idx].text = e.target.value;
+                                            setDialogueLines(newLines);
+                                        }}
+                                        className="w-full h-12 p-1 text-sm outline-none resize-none bg-transparent font-normal" 
+                                        placeholder="输入台词..." 
+                                    />
+                                 </div>
+                             ))}
+                             {dialogueLines.length === 0 && (
+                                 <div className="flex items-center justify-center h-full text-slate-400 text-xs italic">
+                                     点击下方按钮添加对话
+                                 </div>
+                             )}
+                             <div className="flex gap-2 flex-wrap pt-2 mt-auto">
+                                 {speakerMap.map(s => (
+                                    <button 
+                                        key={s.id}
+                                        onClick={() => setDialogueLines([...dialogueLines, { id: generateUUID(), speakerId: s.id, text: '' }])}
+                                        className="flex items-center gap-1 px-3 py-1.5 bg-white border border-black text-xs font-bold uppercase hover:bg-brand-yellow transition-colors brutalist-shadow-sm hover:translate-y-0.5 hover:shadow-none"
+                                    >
+                                        <Plus className="w-3 h-3"/> {s.name} 说...
+                                    </button>
+                                 ))}
+                             </div>
+                          </div>
+                      ) : (
+                          <textarea 
+                              value={prompt} 
+                              onChange={(e) => setPrompt(e.target.value)} 
+                              placeholder={isAudioMode ? (audioGenMode === 'single' ? "阴森低语地说：指尖阵阵刺痛……我想定是那邪祟，正悄然近矣。" : "") : "描述您的创作奇想..."} 
+                              className="w-full h-48 p-3 border border-black font-normal text-base bg-white focus:outline-none brutalist-input resize-y leading-relaxed" 
+                          />
+                      )}
+                      
                       {showSaveSuccess && (
                         <div className="absolute top-2 right-2 bg-brand-green text-black border border-black px-2 py-1 text-[10px] font-normal brutalist-shadow-sm animate-in fade-in slide-in-from-right-2 z-20 italic">
                           保存成功
@@ -3501,7 +3671,7 @@ URL=${window.location.href}
                </span>
                <span className="text-base font-medium text-brand-red flex items-center gap-2">
                   <Megaphone className="w-5 h-5" />
-                  Sora 2如遇限时特价分组不能使用请切换分组为sora-vip或者切换其它模型使用
+                  我们将优先维护好sora-vip分组，保证使用成功率。
                </span>
              </div>
            </div>
@@ -3629,7 +3799,7 @@ URL=${window.location.href}
             <div className="p-8 space-y-6">
               
               <div className="font-bold text-brand-red text-xl">
-                 API令牌分组：限时特价→企业级→default→优质gemini→逆向
+                 API令牌分组：限时特价→default→优质gemini→逆向→sora-vip
               </div>
 
               <div className="space-y-2">
@@ -3721,7 +3891,7 @@ URL=${window.location.href}
               {[
                 { n: '1', t: '注册与令牌', d: <>
                   前往主站 <a href="https://www.vivaapi.cn" target="_blank" className="text-blue-600 font-medium underline italic">www.vivaapi.cn</a> 注册并创建您的专属令牌。
-                  <div className="mt-2 text-brand-red font-normal text-sm">API令牌分组：限时特价→企业级→default→优质gemini→逆向</div>
+                  <div className="mt-2 text-brand-red font-normal text-sm">API令牌分组：限时特价→default→优质gemini→逆向→sora-vip</div>
                 </> },
                 { n: '2', t: '配置使用', d: '点击本站上方设置 按钮，输入令牌即可开始创作。' },
                 { n: '3', t: '查询日志', d: '使用记录及额度消耗情况请在主站后台查询。' }
