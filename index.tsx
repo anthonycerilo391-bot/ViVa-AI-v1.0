@@ -12,7 +12,7 @@ import {
   Paperclip, FileText, Music, Mic, Volume2,
   User, VolumeX, AudioLines, MessageSquare,
   ChevronLeft, ChevronRight, MessageSquarePlus, Zap, Eraser, ArrowUp,
-  ChevronDown, Brush, Brain, Monitor, ArrowDown, FolderOpen, Globe
+  ChevronDown, Brush, Brain, Monitor, ArrowDown, FolderOpen
 } from 'lucide-react';
 
 // --- Types & Declarations ---
@@ -1485,7 +1485,7 @@ URL=${window.location.href}
                  try {
                     const errJson = JSON.parse(errText);
                     const msg = errJson.message || errJson.error?.message || `HTTP ${res.status}`;
-                    updateAssetStatus(assetId, 'failed', '请求失败');
+                    updateAssetStatus(assetId, 'failed', msg);
                  } catch (e) {
                     updateAssetStatus(assetId, 'failed', `HTTP ${res.status}`);
                  }
@@ -3065,8 +3065,8 @@ RoleName必须严格对应用户输入中的角色名。`;
                                          </div>
                                          <div className="flex items-center gap-3">
                                              <ExternalLink className="w-5 h-5 text-brand-blue opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300" />
-                                             <div onClick={(e) => e.preventDefault()} className="cursor-grab active:cursor-grabbing hover:bg-slate-100 rounded p-1 -mr-1 transition-colors">
-                                                 <GripVertical className="w-5 h-5 text-slate-300 hover:text-black transition-colors" title="拖动排序" />
+                                             <div onClick={(e) => e.preventDefault()} className="cursor-grab active:cursor-grabbing hover:bg-slate-100 rounded p-1 -mr-1 transition-colors" title="拖动排序">
+                                                 <GripVertical className="w-5 h-5 text-slate-300 hover:text-black transition-colors" />
                                              </div>
                                          </div>
                                      </div>
