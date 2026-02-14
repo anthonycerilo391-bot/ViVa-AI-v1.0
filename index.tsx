@@ -3838,8 +3838,8 @@ RoleName必须严格对应用户输入中的角色名。`;
                      </div>
                   ) : asset.status === 'failed' ? (
                      <div className="w-full h-full flex flex-col items-center justify-center p-6 bg-[#f8fafc]">
-                        <Frown className="w-16 h-16 text-black mb-3 opacity-70" strokeWidth={1.5} />
-                        <span className="font-bold text-sm text-black tracking-wide">生成失败</span>
+                        <Frown className="w-16 h-16 text-[#808080] mb-3" strokeWidth={1.5} />
+                        <span className="font-normal text-sm text-[#808080] tracking-wide">生成失败</span>
                      </div>
                   ) : asset.type === 'image' ? (
                     <img src={asset.url} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
