@@ -3794,7 +3794,7 @@ RoleName必须严格对应用户输入中的角色名。`;
                </span>
                <span className="text-base font-medium text-brand-red flex items-center gap-2">
                   <Megaphone className="w-5 h-5" />
-                  对于sora-2模型，目前不保证成功率，有新消息会及时通知。
+                  使用sora-2模型，请确保令牌分组包含sora-vip，但依旧不保证成功率
                </span>
              </div>
            </div>
@@ -3819,9 +3819,22 @@ RoleName必须严格对应用户输入中的角色名。`;
 
                 <div className="aspect-square bg-slate-100 border-b-2 border-black relative overflow-hidden">
                   {(asset.status === 'loading' || asset.status === 'queued' || asset.status === 'processing') ? (
-                     <div className="w-full h-full flex flex-col items-center justify-center p-8 bg-slate-50 animate-pulse">
-                        <Loader2 className="w-12 h-12 mb-4 animate-spin text-brand-black" />
-                        <span className="font-normal text-xs uppercase tracking-tighter italic">Rendering...</span>
+                     <div className="w-full h-full flex flex-col items-center justify-center p-4 bg-slate-50 relative">
+                        <div className="flex flex-col items-center animate-pulse">
+                            <Loader2 className="w-12 h-12 mb-4 animate-spin text-brand-black" />
+                            <span className="font-normal text-xs uppercase tracking-tighter italic">Rendering...</span>
+                        </div>
+                        {asset.type === 'video' && (
+                            <a 
+                                href="https://www.vivaapi.cn/console/task" 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                className="mt-4 px-3 py-1.5 bg-white border border-black text-sm font-normal uppercase hover:bg-brand-yellow transition-all brutalist-shadow-sm z-20 hover:-translate-y-0.5 hover:shadow-none flex items-center gap-1"
+                            >
+                                <ExternalLink className="w-4 h-4"/> 查询进度
+                            </a>
+                        )}
                      </div>
                   ) : asset.status === 'failed' ? (
                      <div className="w-full h-full flex flex-col items-center justify-center p-8 bg-brand-cream gap-2">
@@ -3862,7 +3875,6 @@ RoleName必须严格对应用户输入中的角色名。`;
                     <span className="font-normal text-xs text-brand-red bg-brand-yellow px-1.5 py-0.5 border border-black uppercase tracking-wider">
                       {asset.modelName} {asset.config?.aspectRatio ? `(${asset.config.aspectRatio})` : asset.config?.videoRatio ? `(${asset.config.videoRatio})` : ''}
                     </span>
-                    <span className={`font-normal text-xs px-1.5 py-0.5 uppercase border border-black ${asset.status === 'failed' ? 'bg-brand-red text-white' : 'bg-black text-white'}`}>{asset.genTimeLabel}</span>
                   </div>
                   
                   <div className="relative group/prompt">
