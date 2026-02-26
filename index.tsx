@@ -213,6 +213,17 @@ const VIDEO_MODELS = [
     ]
   },
   { 
+    id: 'sora-2', 
+    name: 'Sora-2', 
+    desc: '标清视频', 
+    supportedAspectRatios: ['9:16', '16:9'],
+    options: [
+      {s: '4', q: '高清'}, 
+      {s: '8', q: '高清'},
+      {s: '12', q: '高清'}
+    ] 
+  },
+  { 
     id: 'sora-2-all', 
     name: 'Sora-2-All', 
     desc: '标清视频', 
@@ -220,6 +231,15 @@ const VIDEO_MODELS = [
     options: [
       {s: '10', q: '标清'}, 
       {s: '15', q: '标清'}
+    ] 
+  },
+  { 
+    id: 'sora-2-vip-all', 
+    name: 'Sora-2-VIP-All', 
+    desc: '标清视频', 
+    supportedAspectRatios: ['9:16', '16:9'],
+    options: [
+      {s: '10', q: '标清'}
     ] 
   },
   { 
@@ -1025,7 +1045,13 @@ const PRICE_DATA = [
   {
     category: '视频创作',
     items: [
-      { m: 'Sora 2', p: 'default分组 0.14元/条，sora-vip分组 0.56元/条' },
+      { m: 'Sora-2-all', p: 'default分组 0.14元/条，sora-vip分组 0.56元/条' },
+      { m: 'Sora-2-VIP-All', p: 'sora-vip分组 1.75元/条' },
+      { m: 'Sora 2', p: <div className="flex flex-col items-end text-right">
+        <div>官转0.21元/秒</div>
+        <div>官转Open AI0.42元/秒</div>
+        <div>优质官转Open AI0.56元/秒</div>
+      </div> },
       { m: 'VEO 3.1 Fast', p: '0.126元/条' },
       { m: 'Grok Video 3', p: '6S 0.14元/条，10S 0.28元/条，15S 0.35元/条' },
       { m: 'VEO 3.1 Fast 4K', p: '0.181元/条' },
