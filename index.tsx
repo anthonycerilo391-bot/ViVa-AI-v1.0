@@ -4193,14 +4193,13 @@ RoleName必须严格对应用户输入中的角色名。`;
             <ModalHeader title="系统设置 / SETTINGS" icon={Settings2} onClose={() => setActiveModal(null)} />
             <div className="p-8 space-y-6">
               
-              <div className="font-bold text-brand-red text-xl">
-                 API令牌分组：限时特价→default→优质gemini→逆向→sora-vip
-              </div>
-
               <div className="space-y-2">
                 <div className="flex justify-between items-end">
                     <a href={FIXED_BASE_URL} target="_blank" className="text-lg font-bold uppercase italic flex items-center gap-2 hover:underline decoration-2 underline-offset-4">
                         API令牌获取地址 <ExternalLink className="w-5 h-5"/>
+                    </a>
+                    <a href="https://my.feishu.cn/wiki/EPP6wHZEVi1Wi4kZac5cGWDTnx3?from=from_copylink" target="_blank" className="text-lg font-bold uppercase italic flex items-center gap-2 hover:underline decoration-2 underline-offset-4 text-brand-blue hover:text-blue-700 transition-colors">
+                        使用教程 <BookOpen className="w-5 h-5"/>
                     </a>
                 </div>
                 <input 
@@ -4219,8 +4218,12 @@ RoleName必须严格对应用户输入中的角色名。`;
                     type="password" 
                     value={tempConfig.apiKey} 
                     onChange={e => setTempConfig({...tempConfig, apiKey: e.target.value})} 
-                    className="w-full h-14 px-4 border border-black text-xl font-normal font-mono outline-none focus:bg-brand-cream transition-colors tracking-widest" 
+                    placeholder="请输入API令牌后使用"
+                    className="w-full h-14 px-4 border border-black text-xl font-normal font-mono outline-none focus:bg-brand-cream transition-colors tracking-widest placeholder:text-slate-300 placeholder:text-base placeholder:font-sans placeholder:tracking-normal" 
                 />
+                <div className="w-full font-bold text-brand-red text-base mt-2 text-left">
+                   API令牌分组优先级：限时特价→sora-vip→default→优质gemini→逆向
+                </div>
               </div>
 
               <button onClick={saveConfig} className="w-full h-16 bg-brand-yellow border-2 border-black font-bold text-xl uppercase tracking-tighter hover:translate-y-1 hover:shadow-none brutalist-shadow transition-all flex items-center justify-center gap-2 mt-2">
