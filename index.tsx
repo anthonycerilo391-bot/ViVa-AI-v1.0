@@ -121,11 +121,14 @@ const ASPECT_RATIO_LABELS: Record<string, string> = {
   '3:1': '3:1 (长横图)',
   '1:4': '1:4 (极长图)',
   '4:1': '4:1 (长横幅)',
+  '1:8': '1:8 (超长图)',
+  '8:1': '8:1 (超横幅)',
   '原图比例': '原图比例 (Source)',
   'Default': '默认比例 (Default)'
 };
 
 const EXTENDED_RATIOS = ['1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9'];
+const GEMINI_3_1_RATIOS = ['1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9', '1:4', '4:1', '1:8', '8:1'];
 const GPT1_RATIOS = ['1:1', '2:3', '3:2'];
 const GPT15_RATIOS = ['1:1', '2:3', '3:2'];
 const GROK_RATIOS = ['1:1', '3:4', '4:3', '9:16', '16:9'];
@@ -147,7 +150,7 @@ const MODELS: ModelDefinition[] = [
     cost: 'Flash 3.1',
     features: ['fast', 'preview'],
     maxImages: 4,
-    supportedAspectRatios: EXTENDED_RATIOS,
+    supportedAspectRatios: GEMINI_3_1_RATIOS,
     supportedResolutions: ['0.5K', '1K', '2K', '4K']
   },
   { 
