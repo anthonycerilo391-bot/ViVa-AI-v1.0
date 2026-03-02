@@ -365,8 +365,6 @@ const LIGHTING_STYLES = ["阳光", "灯光", "柔和光", "霓虹光"];
 const COMPOSITION_STYLES = ["丰富细节", "背景简约"];
 const ATMOSPHERE_STYLES = ["神秘", "宁静", "温馨", "生动", "色彩艳丽"];
 
-const OPTIMIZER_MODEL = 'gemini-3-flash-preview';
-
 // --- Helpers ---
 const generateUUID = () => {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -1213,13 +1211,79 @@ const App = () => {
   const isFullWidthMode = isChatMode || isProxyMode || isAnnouncementMode || isResourcesMode;
 
   const handleSaveShortcut = () => {
-    const shortcut = `[InternetShortcut]
-URL=${window.location.href}
-`;
-    const blob = new Blob([shortcut], { type: 'text/plain' });
+    const appUrl = window.location.origin;
+    const appName = "ViVa AI助手";
+    const robotIconSvg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23F472B6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 8V4H8'/><rect width='16' height='12' x='4' y='8' rx='2'/><path d='M2 14h2'/><path d='M20 14h2'/><path d='M15 13v2'/><path d='M9 13v2'/></svg>`;
+    
+    const htmlContent = `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${appName}</title>
+    <link rel="icon" href="data:image/svg+xml,${robotIconSvg}">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #fdfdfd;
+            color: #333;
+        }
+        .container {
+            text-align: center;
+            padding: 2rem;
+            border: 2px solid #000;
+            background: #fff;
+            box-shadow: 4px 4px 0px #000;
+        }
+        .icon {
+            width: 64px;
+            height: 64px;
+            margin-bottom: 1rem;
+        }
+        h1 { margin: 0 0 0.5rem 0; font-size: 1.5rem; }
+        p { margin: 0; color: #666; }
+        .loader {
+            margin-top: 1.5rem;
+            width: 30px;
+            height: 30px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #000;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+    <script>
+        window.onload = function() {
+            setTimeout(function() {
+                window.location.href = "${appUrl}";
+            }, 500);
+        };
+    </script>
+</head>
+<body>
+    <div class="container">
+        <div class="icon">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#F472B6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
+        </div>
+        <h1>${appName}</h1>
+        <p>正在为您跳转到应用...</p>
+        <div class="loader"></div>
+    </div>
+</body>
+</html>`;
+
+    const blob = new Blob([htmlContent], { type: 'text/html' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = 'ViVa AI助手.url';
+    link.download = `${appName}.html`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -1403,7 +1467,7 @@ URL=${window.location.href}
   // ... (Polling, helpers, upload functions - no changes needed, reusing existing)
   
   const saveConfig = () => {
-    const normalized = { ...tempConfig, baseUrl: FIXED_BASE_URL };
+    const normalized = { ...tempConfig };
     setConfig(normalized);
     setTempConfig(normalized);
     localStorage.setItem('viva_config', JSON.stringify(normalized));
@@ -1874,30 +1938,45 @@ RoleName必须严格对应用户输入中的角色名。`;
             { role: "user", content: userContent }
         ];
 
-        const res = await fetch(`${config.baseUrl}/v1/chat/completions`, {
+      let lastError = null;
+      const modelsToTry = ['gpt-5-mini', 'gemini-3-flash-preview', 'gemini-3-pro-preview'];
+      
+      for (const model of modelsToTry) {
+        try {
+          const res = await fetch(`${config.baseUrl}/v1/chat/completions`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
             body: JSON.stringify({ 
-                model: OPTIMIZER_MODEL, 
+                model: model, 
                 messages: messages, 
                 max_tokens: 2000 
             })
-        });
-        const data = await res.json();
-        
-        if (data.error) throw new Error(data.error.message || "Optimization Error");
+          });
+          const data = await res.json();
+          
+          if (data.error) throw new Error(data.error.message || "Optimization Error");
 
-        const optimized = data.choices?.[0]?.message?.content?.trim();
-        if (optimized) { 
-            if (isAudioMode && audioGenMode === 'multi') {
-                const newLines = parsePromptToLines(optimized, speakerMap);
-                setDialogueLines(newLines);
-                // Prompt will be auto-updated by useEffect
-            } else {
-                setPrompt(optimized); 
-            }
-            setError(null); 
+          const optimized = data.choices?.[0]?.message?.content?.trim();
+          if (optimized) { 
+              if (isAudioMode && audioGenMode === 'multi') {
+                  const newLines = parsePromptToLines(optimized, speakerMap);
+                  setDialogueLines(newLines);
+              } else {
+                  setPrompt(optimized); 
+              }
+              setError(null);
+              setIsOptimizing(false);
+              return;
+          }
+        } catch (e: any) {
+          lastError = e;
+          console.warn(`Model ${model} failed, trying next...`, e);
         }
+      }
+      
+      if (lastError) {
+        setError("AI优化失败: " + (lastError.message || "所有模型均尝试失败"));
+      }
      } catch (e: any) { setError("AI优化失败: " + (e.message || "未知错误")); } finally { setIsOptimizing(false); }
   };
 
@@ -3038,7 +3117,7 @@ RoleName必须严格对应用户输入中的角色名。`;
       <div className="w-full md:w-20 bg-white border-b-2 md:border-b-0 border-black flex md:flex-col justify-between md:justify-start items-center z-30 shrink-0 overflow-x-auto md:overflow-visible">
           
           <div className="hidden md:flex h-16 w-full items-center justify-center border-b-2 border-black bg-brand-yellow shrink-0">
-             <Bot className="w-10 h-10 text-black" strokeWidth={2} />
+             <Bot className="w-10 h-10 text-black" strokeWidth={1.5} />
           </div>
 
           <div className="flex md:flex-col items-center gap-2 md:gap-4 w-full overflow-x-auto md:overflow-visible no-scrollbar px-4 md:px-0 py-4 md:py-6 md:flex-1 md:border-r-2 border-black">
@@ -3051,6 +3130,7 @@ RoleName必须严格对应用户输入中的角色名。`;
                   { id: 'proxy', icon: Shield, label: '代理', action: () => { setMainCategory('proxy'); resetInputState(); }, active: mainCategory === 'proxy' },
                   { id: 'announcement', icon: Megaphone, label: '公告', action: () => { setMainCategory('announcement'); resetInputState(); }, active: mainCategory === 'announcement' },
                   { id: 'case', icon: BookOpen, label: '案例', action: () => { window.open('https://my.feishu.cn/wiki/LIEvwzn0jipQ4PkF0dkc57I2njh?from=from_copylink', '_blank'); }, active: false },
+                  { id: 'save', icon: Save, label: '保存', action: handleSaveShortcut, active: false },
               ].map(item => (
                   <button 
                       key={item.id}
@@ -3061,7 +3141,7 @@ RoleName必须严格对应用户输入中的角色名。`;
                             : 'bg-transparent border-transparent hover:bg-slate-200'}`}
                       title={item.label}
                   >
-                      <item.icon className="w-7 h-7 transition-colors text-black" strokeWidth={2} />
+                      <item.icon className="w-7 h-7 transition-colors text-black" strokeWidth={1.5} />
                       <span className="text-xs font-normal mt-1 transition-colors text-black">{item.label}</span>
                   </button>
               ))}
@@ -3073,7 +3153,7 @@ RoleName必须严格对应用户输入中的角色名。`;
                 className="w-8 h-8 flex items-center justify-center border border-black bg-white hover:bg-brand-yellow transition-all rounded-full brutalist-shadow-sm hover:shadow-none"
                 title={isSidebarOpen ? "收起" : "展开"}
             >
-                {isSidebarOpen ? <ChevronLeft className="w-5 h-5"/> : <ChevronRight className="w-5 h-5"/>}
+                {isSidebarOpen ? <ChevronLeft className="w-5 h-5" strokeWidth={1.5}/> : <ChevronRight className="w-5 h-5" strokeWidth={1.5}/>}
             </button>
           </div>
       </div>
@@ -3090,13 +3170,6 @@ RoleName必须严格对应用户输入中的角色名。`;
         <header className="bg-brand-yellow pl-3 pr-5 border-b-2 border-black h-14 md:h-16 flex items-center justify-between transition-colors duration-300">
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-bold italic tracking-tight text-black">ViVa AI助手</h1>
-            <button 
-                onClick={handleSaveShortcut} 
-                className="ml-2 w-8 h-8 flex items-center justify-center bg-white border border-black rounded-md hover:bg-black hover:text-white transition-all brutalist-shadow-sm hover:translate-y-0.5 hover:shadow-none" 
-                title="保存到桌面"
-            >
-                <Monitor className="w-4 h-4" />
-            </button>
           </div>
           {isFullWidthMode && (
           <div className="flex items-center gap-2 md:gap-3">
@@ -3149,7 +3222,7 @@ RoleName必须严格对应用户输入中的角色名。`;
                                 Notice Board
                             </div>
                             <h2 className="text-4xl md:text-5xl font-black italic uppercase tracking-tighter">最新公告</h2>
-                            <p className="text-lg font-medium opacity-80">了解 ViVa AI 的最新动态与功能更新</p>
+                            <p className="text-lg font-medium opacity-80">了解本产品的最新动态与功能更新</p>
                         </div>
                     </div>
 
@@ -3160,7 +3233,7 @@ RoleName必须严格对应用户输入中的角色名。`;
                         </div>
                         <div className="space-y-1">
                             <h3 className="font-bold text-lg text-brand-red uppercase">重要提示 / IMPORTANT</h3>
-                            <p className="text-sm text-slate-700 font-medium">首次使用前，请务必在设置中配置您的 <a href="https://www.vivaapi.cn/console/token" target="_blank" className="bg-brand-yellow px-1 border border-black text-xs hover:opacity-80 transition-opacity">API令牌</a>，否则无法生成内容。</p>
+                            <p className="text-sm text-slate-700 font-medium">首次使用前，请务必在设置中配置您的 <span className="bg-brand-yellow px-1 border border-black text-xs">API令牌</span>，否则无法生成内容。</p>
                         </div>
                     </div>
 
@@ -3272,7 +3345,7 @@ RoleName必须严格对应用户输入中的角色名。`;
                             </div>
                             <div className="bg-black/20 p-4 border border-white/30 backdrop-blur-sm max-w-sm">
                                 <p className="text-sm font-medium leading-relaxed">
-                                    加入 Viva API 合作伙伴计划，开启您的 AI 创业之旅。零门槛，高回报。
+                                    开启您的 AI 创业之旅。零门槛，高回报。
                                 </p>
                             </div>
                         </div>
@@ -3288,8 +3361,8 @@ RoleName必须严格对应用户输入中的角色名。`;
                         </div>
                         {[
                             "提供超低的成本使用价，自用省米，运营赚米",
-                            "部署搭建同 www.vivaapi.cn 一样的AI聚合API平台",
-                            "部署搭建同 p.vivaapi.cn 一样的AI应用平台",
+                            "部署搭建同本AI大模型API主站一样的聚合API平台",
+                            "部署搭建同本AI助手一样的AI应用平台",
                             "无需服务器、无需后续管理、只需提供一个域名",
                             "最快一天部署上线，代理费达标后可全额返还",
                             "2026弯道超车的机会，望君把握"
@@ -4238,11 +4311,11 @@ RoleName必须严格对应用户输入中的角色名。`;
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
           <div className="w-[600px] bg-white border-2 border-black brutalist-shadow animate-in zoom-in-95 relative">
             <ModalHeader title="系统设置 / SETTINGS" icon={Settings2} onClose={() => setActiveModal(null)} />
-            <div className="p-8 space-y-6">
+            <div className="p-8 space-y-5">
               
               <div className="space-y-2">
                 <div className="flex justify-between items-end">
-                    <a href={FIXED_BASE_URL} target="_blank" className="text-lg font-bold uppercase italic flex items-center gap-2 hover:underline decoration-2 underline-offset-4">
+                    <a href={tempConfig.baseUrl} target="_blank" className="text-lg font-bold uppercase italic flex items-center gap-2 hover:underline decoration-2 underline-offset-4">
                         API令牌获取地址 <ExternalLink className="w-5 h-5"/>
                     </a>
                     <a href="https://my.feishu.cn/wiki/EPP6wHZEVi1Wi4kZac5cGWDTnx3?from=from_copylink" target="_blank" className="text-lg font-bold uppercase italic flex items-center gap-2 hover:underline decoration-2 underline-offset-4 text-brand-blue hover:text-blue-700 transition-colors">
@@ -4251,19 +4324,20 @@ RoleName必须严格对应用户输入中的角色名。`;
                 </div>
                 <input 
                     type="text" 
-                    value="https://www.vivaapi.cn" 
-                    readOnly 
-                    className="w-full h-14 px-4 border border-black bg-slate-50 text-slate-600 text-lg font-normal font-mono outline-none" 
+                    value={tempConfig.baseUrl} 
+                    onChange={(e) => setTempConfig({...tempConfig, baseUrl: e.target.value})}
+                    className="w-full h-11 px-4 border border-black bg-white text-black text-lg font-normal font-mono outline-none transition-colors focus:bg-brand-cream placeholder:text-slate-300 placeholder:text-base placeholder:font-sans" 
+                    placeholder="请输入接口地址，如 https://api.openai.com"
                 />
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <label className="text-lg font-bold uppercase italic block">
                     API令牌 (KEY)
                 </label>
                 
-                <div className="space-y-3">
-                    <div className="flex items-center gap-3">
+                <div className="space-y-2">
+                    <div className="flex items-center gap-2">
                         <input 
                             type="radio" 
                             checked={tempConfig.selectedKeyIndex !== 1} 
@@ -4275,11 +4349,11 @@ RoleName必须严格对应用户输入中的角色名。`;
                             value={tempConfig.apiKey} 
                             onChange={e => setTempConfig({...tempConfig, apiKey: e.target.value})} 
                             placeholder="令牌 1"
-                            className={`flex-1 h-12 px-4 border border-black text-lg font-normal font-mono outline-none transition-colors tracking-widest placeholder:text-slate-300 placeholder:text-base placeholder:font-sans placeholder:tracking-normal ${tempConfig.selectedKeyIndex !== 1 ? 'bg-white focus:bg-brand-cream' : 'bg-slate-100 text-slate-400'}`}
+                            className={`flex-1 h-11 px-4 border border-black text-lg font-normal font-mono outline-none transition-colors tracking-widest placeholder:text-slate-300 placeholder:text-base placeholder:font-sans placeholder:tracking-normal ${tempConfig.selectedKeyIndex !== 1 ? 'bg-white focus:bg-brand-cream' : 'bg-slate-100 text-slate-400'}`}
                         />
                     </div>
 
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
                         <input 
                             type="radio" 
                             checked={tempConfig.selectedKeyIndex === 1} 
@@ -4291,17 +4365,17 @@ RoleName必须严格对应用户输入中的角色名。`;
                             value={tempConfig.apiKey2 || ''} 
                             onChange={e => setTempConfig({...tempConfig, apiKey2: e.target.value})} 
                             placeholder="令牌 2"
-                            className={`flex-1 h-12 px-4 border border-black text-lg font-normal font-mono outline-none transition-colors tracking-widest placeholder:text-slate-300 placeholder:text-base placeholder:font-sans placeholder:tracking-normal ${tempConfig.selectedKeyIndex === 1 ? 'bg-white focus:bg-brand-cream' : 'bg-slate-100 text-slate-400'}`}
+                            className={`flex-1 h-11 px-4 border border-black text-lg font-normal font-mono outline-none transition-colors tracking-widest placeholder:text-slate-300 placeholder:text-base placeholder:font-sans placeholder:tracking-normal ${tempConfig.selectedKeyIndex === 1 ? 'bg-white focus:bg-brand-cream' : 'bg-slate-100 text-slate-400'}`}
                         />
                     </div>
                 </div>
 
-                <div className="w-full font-bold text-brand-red text-base mt-2 text-left">
+                <div className="w-full font-bold text-brand-red text-sm mt-1 text-left">
                    API令牌分组优先级：限时特价→sora-vip→default→优质gemini→逆向
                 </div>
               </div>
 
-              <button onClick={saveConfig} className="w-full h-16 bg-brand-yellow border-2 border-black font-bold text-xl uppercase tracking-tighter hover:translate-y-1 hover:shadow-none brutalist-shadow transition-all flex items-center justify-center gap-2 mt-2">
+              <button onClick={saveConfig} className="w-full h-14 bg-brand-yellow border-2 border-black font-bold text-xl uppercase tracking-tighter hover:translate-y-1 hover:shadow-none brutalist-shadow transition-all flex items-center justify-center gap-2 mt-1">
                 保存设置/SAVE SETTINGS
               </button>
             </div>
