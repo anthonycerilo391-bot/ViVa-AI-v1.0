@@ -9,12 +9,12 @@
   },
   "agents": [
     {
-      "domain": "agent-a.example.com",
-      "appName": "代理A助手",
-      "wechatSupport": "agent-a-wx",
+      "domain": "p.navidrawing.com",
+      "appName": "绘影AI助手",
+      "wechatSupport": "HeTieJiang777",
       "moreDetailsLink": "https://example.com/agent-a-details",
       "casesLink": "https://example.com/agent-a-cases",
-      "mainSiteLink": "https://agent-a.vivaapi.cn",
+      "mainSiteLink": "https://www.navidrawing.com",
       "exchangeRate": 0.8
     }
   ]
