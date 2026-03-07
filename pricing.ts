@@ -1,11 +1,11 @@
-import { AGENT_CONFIG } from "./agent.config";
+import { APP_CONFIG } from "./src/app_config";
 
 /**
  * 获取汇率转换因子
  * 公式: 因子 = 代理设置的汇率 / 0.7
  */
 export const getPriceFactor = () => {
-  return (AGENT_CONFIG.exchangeRate || 0.7) / 0.7;
+  return (APP_CONFIG.PRICE_RATIO || 0.7) / 0.7;
 };
 
 /**

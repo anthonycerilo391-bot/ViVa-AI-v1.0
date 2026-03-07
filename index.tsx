@@ -1,16 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
-import { AGENT_CONFIG } from './agent.config';
+import { APP_CONFIG } from './src/app_config';
 import { formatPriceString } from './pricing';
 import { 
-  Settings2, Sparkles, Video, 
+  Settings, Sparkles, Video, 
   Loader2, Download,
   Bot, X, AlertCircle, Plus,
   RefreshCw, Edit, Maximize2, Check,
   Square, CheckSquare, Megaphone, ExternalLink,
   History, Copy, ClipboardCheck, Trash2,
   AlertTriangle, Palette, Bookmark, Wand2, GripVertical, Save,
-  Image as ImageIcon, BookOpen, Headset, Shield,
+  Image as ImageIcon, BookOpen, MessageCircleQuestion, Shield, BadgeDollarSign,
   Paperclip, FileText, Music, Mic, Volume2,
   User, VolumeX, AudioLines, MessageSquare,
   ChevronLeft, ChevronRight, MessageSquarePlus, Zap, Eraser, ArrowUp,
@@ -103,7 +103,7 @@ interface DialogueLine {
 
 // --- Constants ---
 
-const FIXED_BASE_URL = AGENT_CONFIG.baseUrl;
+const FIXED_BASE_URL = APP_CONFIG.BASE_URL;
 const INITIAL_CHAT_MESSAGE_TEXT = '我可以帮你解答问题、分析文档或处理多媒体内容。支持上传: 文本, 图片, 音频, 视频, PDF以及更多格式。';
 
 const ASPECT_RATIO_LABELS: Record<string, string> = {
@@ -1167,7 +1167,7 @@ const App = () => {
   const [categories, setCategories] = useState<string[]>([]);
 
   useEffect(() => {
-    document.title = AGENT_CONFIG.appName;
+    document.title = APP_CONFIG.APP_NAME;
   }, []);
   const [referenceImages, setReferenceImages] = useState<ReferenceImage[]>([]);
   const [referenceVideos, setReferenceVideos] = useState<ReferenceImage[]>([]);
@@ -1229,8 +1229,8 @@ const App = () => {
   const isFullWidthMode = isChatMode || isProxyMode || isAnnouncementMode || isResourcesMode;
 
   const handleSaveShortcut = () => {
-    const appUrl = "https://p.vivaapi.cn";
-    const appName = AGENT_CONFIG.appName;
+    const appUrl = "https://" + APP_CONFIG.DESKTOP_SAVE_URL;
+    const appName = APP_CONFIG.APP_NAME;
     const robotIconSvg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23F472B6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 8V4H8'/><rect width='16' height='12' x='4' y='8' rx='2'/><path d='M2 14h2'/><path d='M20 14h2'/><path d='M15 13v2'/><path d='M9 13v2'/></svg>`;
     
     const htmlContent = `<!DOCTYPE html>
@@ -1534,6 +1534,10 @@ const App = () => {
             
             const taskStatus = data.data?.task_status || '';
             
+            // Check for error logs in response
+            const logs = (data.data?.task_log || data.data?.usage_log || '').toString();
+            const hasLogError = /error|fail|exception/i.test(logs) && !/no error|success/i.test(logs);
+
             if (taskStatus === 'succeed') {
                  const images = data.data?.task_result?.images;
                  const imageUrl = images && images.length > 0 ? images[0].url : null;
@@ -1546,8 +1550,8 @@ const App = () => {
                      updateAssetStatus(assetId, 'failed', '无图');
                  }
                  clearInterval(interval);
-            } else if (taskStatus === 'failed') {
-                 const errorMsg = data.data?.task_status_msg || '失败';
+            } else if (taskStatus === 'failed' || hasLogError) {
+                 const errorMsg = data.data?.task_status_msg || (hasLogError ? logs.slice(0, 100) : '失败');
                  updateAssetStatus(assetId, 'failed', errorMsg);
                  clearInterval(interval);
             }
@@ -1584,6 +1588,10 @@ const App = () => {
             const taskStatus = data.data?.task_status || '';
             const taskResult = data.data?.task_result;
             
+            // Check for error logs in response
+            const logs = (data.data?.task_log || data.data?.usage_log || '').toString();
+            const hasLogError = /error|fail|exception/i.test(logs) && !/no error|success/i.test(logs);
+
             if (taskStatus === 'succeed') {
                  const videoUrl = taskResult?.videos?.[0]?.url;
                  if (videoUrl) {
@@ -1594,8 +1602,8 @@ const App = () => {
                      updateAssetStatus(assetId, 'failed', '无视频');
                  }
                  clearInterval(interval);
-            } else if (taskStatus === 'failed') {
-                 const errorMsg = data.data?.task_status_msg || '失败';
+            } else if (taskStatus === 'failed' || hasLogError) {
+                 const errorMsg = data.data?.task_status_msg || (hasLogError ? logs.slice(0, 100) : '失败');
                  updateAssetStatus(assetId, 'failed', errorMsg);
                  clearInterval(interval);
             }
@@ -1640,8 +1648,12 @@ const App = () => {
             const rawStatus = (data.status || data.state || data.data?.status || '').toLowerCase();
             const videoUrl = data.video_url || data.url || data.uri || data.data?.url || data.data?.video_url;
 
+            // Check for error logs in response
+            const logs = (data.logs || data.task_log || data.usage_log || '').toString();
+            const hasLogError = /error|fail|exception/i.test(logs) && !/no error|success/i.test(logs);
+
             const isSuccess = ['completed', 'succeeded', 'success', 'done'].includes(rawStatus);
-            const isFailed = ['failed', 'error', 'rejected'].includes(rawStatus);
+            const isFailed = ['failed', 'error', 'rejected', 'cancelled', 'timeout', 'exception'].includes(rawStatus) || hasLogError;
 
             if (isSuccess && videoUrl) {
                 const finishTime = Date.now();
@@ -1649,7 +1661,7 @@ const App = () => {
                 updateAssetStatus(assetId, 'completed', `${diff}s`, videoUrl);
                 clearInterval(interval);
             } else if (isFailed) {
-                const reason = data.fail_reason || data.error_msg || data.error || '失败';
+                const reason = data.fail_reason || data.error_msg || data.error || data.task_status_msg || (hasLogError ? logs.slice(0, 100) : '失败');
                 updateAssetStatus(assetId, 'failed', reason);
                 clearInterval(interval);
             }
@@ -3140,8 +3152,8 @@ RoleName必须严格对应用户输入中的角色名。`;
   const renderNavRail = () => (
       <div className="w-full md:w-20 bg-white border-b-2 md:border-b-0 border-black flex md:flex-col justify-between md:justify-start items-center z-30 shrink-0 overflow-x-auto md:overflow-visible">
           
-          <div className="hidden md:flex h-16 w-full items-center justify-center border-b-2 border-black bg-brand-yellow shrink-0">
-             <Bot className="w-10 h-10 text-black" strokeWidth={1.5} />
+          <div className="hidden md:flex h-16 w-full items-center justify-end pr-3 border-b-2 border-black bg-brand-yellow shrink-0">
+             <Bot className="w-10 h-10 text-black" strokeWidth={2} />
           </div>
 
           <div className="flex md:flex-col items-center gap-2 md:gap-4 w-full overflow-x-auto md:overflow-visible no-scrollbar px-4 md:px-0 py-4 md:py-6 md:flex-1 md:border-r-2 border-black">
@@ -3153,7 +3165,7 @@ RoleName必须严格对应用户输入中的角色名。`;
                   { id: 'resources', icon: FolderOpen, label: '资源', action: () => { setMainCategory('resources'); resetInputState(); }, active: mainCategory === 'resources' },
                   { id: 'proxy', icon: Shield, label: '代理', action: () => { setMainCategory('proxy'); resetInputState(); }, active: mainCategory === 'proxy' },
                   { id: 'announcement', icon: Megaphone, label: '公告', action: () => { setMainCategory('announcement'); resetInputState(); }, active: mainCategory === 'announcement' },
-                  { id: 'case', icon: BookOpen, label: '案例', action: () => { window.open('https://my.feishu.cn/wiki/LIEvwzn0jipQ4PkF0dkc57I2njh?from=from_copylink', '_blank'); }, active: false },
+                  { id: 'case', icon: BookOpen, label: '案例', action: () => { window.open(APP_CONFIG.CASE_URL, '_blank'); }, active: false },
                   { id: 'save', icon: Save, label: '保存', action: handleSaveShortcut, active: false },
               ].map(item => (
                   <button 
@@ -3165,8 +3177,8 @@ RoleName必须严格对应用户输入中的角色名。`;
                             : 'bg-transparent border-transparent hover:bg-slate-200'}`}
                       title={item.label}
                   >
-                      <item.icon className="w-7 h-7 transition-colors text-black" strokeWidth={1.5} />
-                      <span className="text-xs font-normal mt-1 transition-colors text-black">{item.label}</span>
+                      <item.icon className="w-8 h-8 transition-colors text-black" strokeWidth={1.5} />
+                      <span className="text-sm font-normal mt-0.5 transition-colors text-black">{item.label}</span>
                   </button>
               ))}
           </div>
@@ -3191,23 +3203,23 @@ RoleName必须严格对应用户输入中的角色名。`;
       {renderNavRail()}
 
       <div className={`bg-white flex flex-col z-20 brutalist-shadow transition-all duration-300 ${isFullWidthMode ? 'flex-1 w-full border-r-0' : (isSidebarOpen ? 'w-full md:w-[450px] border-r-2 border-black' : 'w-0 md:w-0 overflow-hidden border-r-0 opacity-0')}`}>
-        <header className="bg-brand-yellow pl-3 pr-5 border-b-2 border-black h-14 md:h-16 flex items-center justify-between transition-colors duration-300">
+        <header className="bg-brand-yellow pl-1 pr-5 border-b-2 border-black h-14 md:h-16 flex items-center justify-between transition-colors duration-300">
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold italic tracking-tight text-black">{AGENT_CONFIG.appName}</h1>
+            <h1 className="text-2xl font-bold italic tracking-tight text-black">{APP_CONFIG.APP_NAME}</h1>
           </div>
           {isFullWidthMode && (
-          <div className="flex items-center gap-2 md:gap-3">
-               <button onClick={() => setActiveModal('settings')} title="系统设置" className="w-9 h-9 md:w-10 md:h-10 bg-white border border-black flex items-center justify-center brutalist-shadow-sm hover:translate-y-0.5 hover:shadow-none transition-all">
-                    <Settings2 className="w-5 h-5 md:w-6 md:h-6"/>
+          <div className="flex items-center gap-1 md:gap-2">
+               <button onClick={() => setActiveModal('settings')} title="系统设置" className="w-10 h-10 md:w-11 md:h-11 flex items-center justify-center text-black hover:text-brand-red transition-colors">
+                    <Settings className="w-7 h-7 md:w-8 md:h-8"/>
                 </button>
-                 <button onClick={() => setActiveModal('price')} title="价格说明" className="w-9 h-9 md:w-10 md:h-10 bg-brand-green border border-black flex items-center justify-center brutalist-shadow-sm hover:translate-y-0.5 hover:shadow-none transition-all">
-                    <span className="text-xl font-bold text-white">¥</span>
+                 <button onClick={() => setActiveModal('price')} title="价格说明" className="w-10 h-10 md:w-11 md:h-11 flex items-center justify-center text-black hover:text-brand-red transition-colors">
+                    <BadgeDollarSign className="w-7 h-7 md:w-8 md:h-8"/>
                 </button>
-                <button onClick={() => setActiveModal('links')} title="联系客服" className="w-9 h-9 md:w-10 md:h-10 bg-white border border-black flex items-center justify-center brutalist-shadow-sm hover:translate-y-0.5 hover:shadow-none transition-all">
-                    <Headset className="w-5 h-5 md:w-6 md:h-6"/>
+                <button onClick={() => setActiveModal('links')} title="联系客服" className="w-10 h-10 md:w-11 md:h-11 flex items-center justify-center text-black hover:text-brand-red transition-colors">
+                    <MessageCircleQuestion className="w-7 h-7 md:w-8 md:h-8"/>
                 </button>
-                <a href={`${AGENT_CONFIG.baseUrl}/console/log`} target="_blank" title="使用日志" className="w-9 h-9 md:w-10 md:h-10 bg-white border border-black flex items-center justify-center brutalist-shadow-sm hover:translate-y-0.5 hover:shadow-none transition-all">
-                  <History className="w-5 h-5 md:w-6 md:h-6" />
+                <a href={`${APP_CONFIG.BASE_URL}/console/log`} target="_blank" title="使用日志" className="w-10 h-10 md:w-11 md:h-11 flex items-center justify-center text-black hover:text-brand-red transition-colors">
+                  <History className="w-7 h-7 md:w-8 md:h-8" />
                 </a>
           </div>
           )}
@@ -3401,7 +3413,7 @@ RoleName必须严格对应用户输入中的角色名。`;
                     </div>
 
                     {/* CTA Section */}
-                    <a href="https://ai.feishu.cn/wiki/O6Q9wrxxci898Wkj6ndcFnlknJd?from=from_copylink" target="_blank" className="block group relative">
+                    <a href={APP_CONFIG.AGENT_JOIN_URL} target="_blank" className="block group relative">
                         <div className="relative bg-white border-2 border-black p-8 flex flex-col md:flex-row items-center justify-between gap-6 hover:-translate-y-1 transition-transform cursor-pointer">
                             <div className="space-y-2">
                                 <h3 className="text-2xl font-black uppercase italic">立即加入代理计划</h3>
@@ -4151,18 +4163,18 @@ RoleName必须严格对应用户输入中的角色名。`;
                 </div>
               )}
           </div>
-          <div className="flex items-center gap-2 md:gap-3">
-               <button onClick={() => setActiveModal('settings')} title="系统设置" className="w-9 h-9 md:w-10 md:h-10 bg-white border border-black flex items-center justify-center brutalist-shadow-sm hover:translate-y-0.5 hover:shadow-none transition-all">
-                    <Settings2 className="w-5 h-5 md:w-6 md:h-6"/>
+          <div className="flex items-center gap-1 md:gap-2">
+               <button onClick={() => setActiveModal('settings')} title="系统设置" className="w-10 h-10 md:w-11 md:h-11 flex items-center justify-center text-black hover:text-brand-red transition-colors">
+                    <Settings className="w-7 h-7 md:w-8 md:h-8"/>
                 </button>
-                 <button onClick={() => setActiveModal('price')} title="价格说明" className="w-9 h-9 md:w-10 md:h-10 bg-brand-green border border-black flex items-center justify-center brutalist-shadow-sm hover:translate-y-0.5 hover:shadow-none transition-all">
-                    <span className="text-xl font-bold text-white">¥</span>
+                 <button onClick={() => setActiveModal('price')} title="价格说明" className="w-10 h-10 md:w-11 md:h-11 flex items-center justify-center text-black hover:text-brand-red transition-colors">
+                    <BadgeDollarSign className="w-7 h-7 md:w-8 md:h-8"/>
                 </button>
-                <button onClick={() => setActiveModal('links')} title="联系客服" className="w-9 h-9 md:w-10 md:h-10 bg-white border border-black flex items-center justify-center brutalist-shadow-sm hover:translate-y-0.5 hover:shadow-none transition-all">
-                    <Headset className="w-5 h-5 md:w-6 md:h-6"/>
+                <button onClick={() => setActiveModal('links')} title="联系客服" className="w-10 h-10 md:w-11 md:h-11 flex items-center justify-center text-black hover:text-brand-red transition-colors">
+                    <MessageCircleQuestion className="w-7 h-7 md:w-8 md:h-8"/>
                 </button>
-                <a href={`${AGENT_CONFIG.baseUrl}/console/log`} target="_blank" title="使用日志" className="w-9 h-9 md:w-10 md:h-10 bg-white border border-black flex items-center justify-center brutalist-shadow-sm hover:translate-y-0.5 hover:shadow-none transition-all">
-                  <History className="w-5 h-5 md:w-6 md:h-6" />
+                <a href={`${APP_CONFIG.BASE_URL}/console/log`} target="_blank" title="使用日志" className="w-10 h-10 md:w-11 md:h-11 flex items-center justify-center text-black hover:text-brand-red transition-colors">
+                  <History className="w-7 h-7 md:w-8 md:h-8" />
                 </a>
           </div>
         </div>
@@ -4185,7 +4197,7 @@ RoleName必须严格对应用户输入中的角色名。`;
              <div className="animate-marquee whitespace-nowrap flex items-center gap-8">
                <span className="text-base font-medium text-brand-red flex items-center gap-2">
                   <AlertTriangle className="w-5 h-5" />
-                  本应用资产仅存储于用户本地浏览器中，请及时下载保存。
+                  本应用资产仅存储于用户本地浏览器中。
                </span>
                <span className="text-base font-medium text-brand-red flex items-center gap-2">
                   <AlertCircle className="w-5 h-5" />
@@ -4193,11 +4205,7 @@ RoleName必须严格对应用户输入中的角色名。`;
                </span>
                <span className="text-base font-medium text-brand-red flex items-center gap-2">
                   <Megaphone className="w-5 h-5" />
-                  使用sora-2模型，请确保令牌分组包含sora-vip，但依旧不保证成功率
-               </span>
-               <span className="text-base font-medium text-brand-red flex items-center gap-2">
-                  <RefreshCw className="w-5 h-5" />
-                  如遇模型不能使用，优先尝试切换API令牌分组。
+                  如遇连续多次生成失败，优先尝试切换API令牌分组或者更换模型。
                </span>
              </div>
            </div>
@@ -4205,7 +4213,7 @@ RoleName必须严格对应用户输入中的角色名。`;
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 pt-2 pb-6 no-scrollbar">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4 md:gap-10">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-3 md:gap-5">
             {generatedAssets.map((asset) => (
               <div key={asset.id} 
                    data-asset-id={asset.id} 
@@ -4230,7 +4238,7 @@ RoleName必须严格对应用户输入中的角色名。`;
                         </div>
                         {asset.type === 'video' && (
                             <a 
-                                href={`${AGENT_CONFIG.baseUrl}/console/task`} 
+                                href={`${APP_CONFIG.BASE_URL}/console/task`} 
                                 target="_blank" 
                                 rel="noopener noreferrer"
                                 onClick={(e) => e.stopPropagation()}
@@ -4281,7 +4289,7 @@ RoleName必须严格对应用户输入中的角色名。`;
                     </span>
                   </div>
                   
-                  <div className="relative group/prompt">
+                  <div className="relative group/prompt h-10">
                     <p className="text-sm font-normal line-clamp-2 leading-tight pr-6 transition-colors group-hover/prompt:text-brand-blue" title={asset.prompt}>
                       "{asset.prompt}"
                     </p>
@@ -4334,7 +4342,7 @@ RoleName必须严格对应用户输入中的角色名。`;
       {activeModal === 'settings' && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
           <div className="w-[600px] bg-white border-2 border-black brutalist-shadow animate-in zoom-in-95 relative">
-            <ModalHeader title="系统设置 / SETTINGS" icon={Settings2} onClose={() => setActiveModal(null)} />
+            <ModalHeader title="系统设置 / SETTINGS" icon={Settings} onClose={() => setActiveModal(null)} />
             <div className="p-8 space-y-5">
               
               <div className="space-y-2">
@@ -4343,14 +4351,14 @@ RoleName必须严格对应用户输入中的角色名。`;
                         API令牌获取地址 <ExternalLink className="w-5 h-5"/>
                     </a>
                     <a href="https://my.feishu.cn/wiki/EPP6wHZEVi1Wi4kZac5cGWDTnx3?from=from_copylink" target="_blank" className="text-lg font-bold uppercase italic flex items-center gap-2 hover:underline decoration-2 underline-offset-4 text-brand-blue hover:text-blue-700 transition-colors">
-                        使用教程 <BookOpen className="w-5 h-5"/>
+                        令牌设置教程-必看 <BookOpen className="w-5 h-5"/>
                     </a>
                 </div>
                 <input 
                     type="text" 
                     value={tempConfig.baseUrl} 
-                    onChange={(e) => setTempConfig({...tempConfig, baseUrl: e.target.value})}
-                    className="w-full h-11 px-4 border border-black bg-white text-black text-lg font-normal font-mono outline-none transition-colors focus:bg-brand-cream placeholder:text-slate-300 placeholder:text-base placeholder:font-sans" 
+                    readOnly
+                    className="w-full h-11 px-4 border border-black bg-gray-100 text-gray-500 text-lg font-normal font-mono outline-none cursor-not-allowed" 
                     placeholder="请输入接口地址，如 https://api.openai.com"
                 />
               </div>
@@ -4394,9 +4402,6 @@ RoleName必须严格对应用户输入中的角色名。`;
                     </div>
                 </div>
 
-                <div className="w-full font-bold text-brand-red text-sm mt-1 text-left">
-                   API令牌分组优先级：限时特价→sora-vip→default→优质gemini→逆向
-                </div>
               </div>
 
               <button onClick={saveConfig} className="w-full h-14 bg-brand-yellow border-2 border-black font-bold text-xl uppercase tracking-tighter hover:translate-y-1 hover:shadow-none brutalist-shadow transition-all flex items-center justify-center gap-2 mt-1">
@@ -4411,12 +4416,12 @@ RoleName必须严格对应用户输入中的角色名。`;
       {activeModal === 'links' && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
           <div className="w-[500px] bg-white border-2 border-black brutalist-shadow animate-in zoom-in-95 relative">
-            <ModalHeader title="联系客服 / SUPPORT" icon={Headset} onClose={() => setActiveModal(null)} />
+            <ModalHeader title="联系客服 / SUPPORT" icon={MessageCircleQuestion} onClose={() => setActiveModal(null)} />
             <div className="p-8 space-y-6">
                <div className="bg-brand-cream border-2 border-black p-6 flex flex-col items-center gap-4 relative overflow-hidden group hover:scale-[1.02] transition-transform duration-300">
                   <div className="absolute top-0 right-0 bg-brand-yellow px-3 py-1 border-l border-b border-black font-normal text-[10px] uppercase">Online</div>
                   <div className="w-16 h-16 bg-brand-blue text-white border border-black rounded-full flex items-center justify-center brutalist-shadow-sm mb-2">
-                      <Headset className="w-8 h-8" />
+                      <MessageCircleQuestion className="w-8 h-8" />
                   </div>
                   <div className="text-center space-y-2 w-full">
                       <h3 className="font-bold text-sm uppercase italic text-slate-500 tracking-widest">WeChat Support</h3>
@@ -4425,7 +4430,7 @@ RoleName必须严格对应用户输入中的角色名。`;
                             微信客服
                           </div>
                           <div className="bg-white border border-black px-4 py-3 text-2xl font-bold uppercase tracking-wider select-all cursor-text hover:bg-slate-50 transition-colors flex-1 text-center">
-                              {AGENT_CONFIG.wechatContact}
+                              {APP_CONFIG.WECHAT_SERVICE}
                           </div>
                       </div>
                       <p className="text-[10px] font-normal text-slate-400 uppercase italic">Click text to copy / Long press</p>
@@ -4445,7 +4450,7 @@ RoleName必须严格对应用户输入中的角色名。`;
                       </p>
                   </div>
 
-                  <a href="https://ai.feishu.cn/wiki/O6Q9wrxxci898Wkj6ndcFnlknJd?from=from_copylink" target="_blank" className="flex items-center justify-center w-full py-4 bg-brand-red text-white border-2 border-transparent outline outline-2 outline-black font-bold text-lg uppercase hover:bg-black hover:translate-y-1 hover:shadow-none brutalist-shadow transition-all italic gap-2 group">
+                  <a href={APP_CONFIG.SUPPORT_DETAIL_URL} target="_blank" className="flex items-center justify-center w-full py-4 bg-brand-red text-white border-2 border-transparent outline outline-2 outline-black font-bold text-lg uppercase hover:bg-black hover:translate-y-1 hover:shadow-none brutalist-shadow transition-all italic gap-2 group">
                       查看更多详情 <ExternalLink className="w-5 h-5 group-hover:scale-110 transition-transform"/>
                   </a>
                </div>
@@ -4461,7 +4466,7 @@ RoleName必须严格对应用户输入中的角色名。`;
             <div className="p-8 space-y-6">
               {[
                 { n: '1', t: '注册与令牌', d: <>
-                  前往主站 <a href="https://www.vivaapi.cn" target="_blank" className="text-blue-600 font-medium underline italic">www.vivaapi.cn</a> 注册并创建您的专属令牌。
+                  前往主站 <a href={APP_CONFIG.BASE_URL} target="_blank" className="text-blue-600 font-medium underline italic">{APP_CONFIG.BASE_URL}</a> 注册并创建您的专属令牌。
                   <div className="mt-2 text-brand-red font-normal text-sm">API令牌分组：限时特价→default→优质gemini→逆向→sora-vip</div>
                 </> },
                 { n: '2', t: '配置使用', d: '点击本站上方设置 按钮，输入令牌即可开始创作。' },
@@ -4481,7 +4486,7 @@ RoleName必须严格对应用户输入中的角色名。`;
       {activeModal === 'price' && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
           <div className="w-[700px] bg-white border-2 border-black brutalist-shadow animate-in zoom-in-95 relative flex flex-col max-h-[85vh]">
-            <ModalHeader title="价格说明 / PRICING" icon="¥" onClose={() => setActiveModal(null)} />
+            <ModalHeader title="价格说明 / PRICING" icon={BadgeDollarSign} onClose={() => setActiveModal(null)} />
             <PriceView />
             <div className="p-3 bg-brand-cream border-t-2 border-black shrink-0 text-center">
                 <p className="text-sm text-slate-500 font-normal italic">
