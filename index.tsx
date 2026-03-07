@@ -4347,7 +4347,7 @@ RoleName必须严格对应用户输入中的角色名。`;
               
               <div className="space-y-2">
                 <div className="flex justify-between items-end">
-                    <a href={tempConfig.baseUrl} target="_blank" className="text-lg font-bold uppercase italic flex items-center gap-2 hover:underline decoration-2 underline-offset-4">
+                    <a href={`${tempConfig.baseUrl.replace(/\/$/, '')}/console/token`} target="_blank" className="text-lg font-bold uppercase italic flex items-center gap-2 hover:underline decoration-2 underline-offset-4">
                         API令牌获取地址 <ExternalLink className="w-5 h-5"/>
                     </a>
                     <a href="https://my.feishu.cn/wiki/EPP6wHZEVi1Wi4kZac5cGWDTnx3?from=from_copylink" target="_blank" className="text-lg font-bold uppercase italic flex items-center gap-2 hover:underline decoration-2 underline-offset-4 text-brand-blue hover:text-blue-700 transition-colors">
