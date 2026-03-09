@@ -7,15 +7,15 @@ import {
   Loader2, Download,
   Bot, X, AlertCircle, Plus,
   RefreshCw, Edit, Maximize2, Check,
-  Square, CheckSquare, Megaphone, ExternalLink,
+  Square, CheckSquare, ExternalLink,
   History, Copy, ClipboardCheck, Trash2,
-  AlertTriangle, Palette, Bookmark, Wand2, GripVertical, Save,
+  Palette, Bookmark, Wand2, GripVertical, Save,
   Image as ImageIcon, BookOpen, MessageCircleQuestion, Shield, BadgeDollarSign,
   Paperclip, FileText, Music, Mic, Volume2,
   User, VolumeX, AudioLines, MessageSquare,
   ChevronLeft, ChevronRight, MessageSquarePlus, Zap, Eraser, ArrowUp,
   ChevronDown, Brush, Brain, Monitor, ArrowDown, FolderOpen, Frown,
-  MegaphoneOff, Link, Globe
+  Link, Globe
 } from 'lucide-react';
 
 // --- Types & Declarations ---
@@ -27,8 +27,8 @@ declare var process: {
   }
 };
 
-type ModalType = 'settings' | 'links' | 'usage' | 'price' | 'support' | 'edit-prompt' | 'styles' | 'library' | 'save-prompt-confirm' | 'video-remix' | 'announcement' | null;
-type MainCategory = 'image' | 'video' | 'proxy' | 'audio' | 'chat' | 'announcement' | 'resources';
+type ModalType = 'settings' | 'links' | 'usage' | 'price' | 'support' | 'edit-prompt' | 'styles' | 'library' | 'save-prompt-confirm' | 'video-remix' | null;
+type MainCategory = 'image' | 'video' | 'proxy' | 'audio' | 'chat' | 'resources';
 
 interface AppConfig {
   baseUrl: string;
@@ -90,6 +90,7 @@ interface SavedPrompt {
 interface ChatMessage {
     role: 'user' | 'model' | 'system';
     text: string;
+    displayText?: string;
     files?: { type: string; data: string; file?: File }[];
     error?: boolean;
     isDivider?: boolean;
@@ -204,6 +205,7 @@ const MODELS: ModelDefinition[] = [
 
 const CHAT_MODELS = [
     { id: 'gemini-3-flash-preview', name: 'Gemini 3 Flash' },
+    { id: 'gemini-3.1-flash-lite-preview', name: 'Gemini-3.1-Flash-Lite' },
     { id: 'gemini-3-pro-preview', name: 'Gemini 3 Pro' },
     { id: 'gpt-5-mini', name: 'GPT 5 Mini' },
 ];
@@ -211,6 +213,7 @@ const CHAT_MODELS = [
 const MODEL_CAPABILITIES: Record<string, { image: boolean; audio: boolean; video: boolean; pdf: boolean; any?: boolean }> = {
     'gemini-2.5-flash': { image: true, audio: true, video: true, pdf: true },
     'gemini-3-flash-preview': { image: true, audio: true, video: true, pdf: true },
+    'gemini-3.1-flash-lite-preview': { image: true, audio: true, video: true, pdf: true },
     'gemini-3-pro-preview': { image: true, audio: true, video: true, pdf: true, any: true },
     'gpt-5.2': { image: true, audio: true, video: true, pdf: true },
     'gpt-5-mini': { image: true, audio: false, video: false, pdf: true },
@@ -661,8 +664,9 @@ const ChatView = ({
         setIsModelDropdownOpen(false);
     };
 
-    const generateResponse = async (history: ChatMessage[]) => {
+    const generateResponse = async (history: ChatMessage[], retryModelId?: string) => {
         setIsLoading(true);
+        const currentModelId = retryModelId || modelId;
         try {
             const key = ((config.selectedKeyIndex === 1 ? config.apiKey2 : config.apiKey) || (typeof process !== 'undefined' && process.env && process.env.API_KEY ? process.env.API_KEY : '')).trim();
             if (!key) throw new Error("请先设置API Key");
@@ -673,10 +677,10 @@ const ChatView = ({
             
             const systemPromptText = "你是一个智能助手。请严格遵守以下规则：\n1. **语言限制**：无论用户输入什么语言，你**必须全程使用中文**进行回复（代码片段除外）。\n2. **文件分析**：如果用户上传了文件，请仔细分析文件内容并用中文回答相关问题。\n3. **禁止思考内容**：直接输出最终答案，**严禁**输出思考过程、思维链(Chain of Thought)、<think>标签或内部独白。\n4. **直接回复**：不包含无意义的开场白或客套话。";
             let responseText = "";
-            let targetModelId = modelId;
+            let targetModelId = currentModelId;
 
             // Handle Thinking Variant for Gemini 3 Pro
-            if (modelId === 'gemini-3-pro-preview' && isThinking) {
+            if (currentModelId === 'gemini-3-pro-preview' && isThinking) {
                 targetModelId = 'gemini-3-pro-preview-thinking';
             }
 
@@ -690,9 +694,6 @@ const ChatView = ({
                 if (msg.files && msg.files.length > 0) {
                     const content: any[] = [{ type: "text", text: msg.text }];
                     msg.files.forEach(f => {
-                         // Support images for OpenAI endpoint compatibility. 
-                         // For Gemini models via proxy, we also pass other supported types as image_url if the proxy supports multimodal input this way,
-                         // but for safety we stick to images or check if it's a Gemini model to be more permissive.
                          const isGemini = targetModelId.startsWith('gemini');
                          if (f.type === 'image' || (f.file && f.file.type.startsWith('image/')) || isGemini) {
                              content.push({
@@ -724,21 +725,56 @@ const ChatView = ({
             if (data.error) throw new Error(data.error.message);
             responseText = data.choices?.[0]?.message?.content || "No response";
             
-            setMessages(prev => [...prev, { role: 'model', text: responseText }]);
+            if (retryModelId) {
+                const modelName = CHAT_MODELS.find(m => m.id === retryModelId)?.name || retryModelId;
+                setModelId(retryModelId);
+                setMessages(prev => [...prev, 
+                    { role: 'system', text: `已切换至 ${modelName} 模型为您重新生成`, isDivider: true },
+                    { role: 'model', text: responseText }
+                ]);
+            } else {
+                setMessages(prev => [...prev, { role: 'model', text: responseText }]);
+            }
 
         } catch (error: any) {
+            console.error("Generation error:", error);
+            // Auto-switch logic
+            if (!retryModelId) {
+                const currentIndex = CHAT_MODELS.findIndex(m => m.id === modelId);
+                const nextModel = CHAT_MODELS[(currentIndex + 1) % CHAT_MODELS.length];
+                if (nextModel && nextModel.id !== modelId) {
+                    await generateResponse(history, nextModel.id);
+                    return;
+                }
+            }
             setMessages(prev => [...prev, { role: 'model', text: `Error: ${error.message}`, error: true }]);
         } finally {
-            setIsLoading(false);
+            if (!retryModelId) {
+                setIsLoading(false);
+            }
         }
     };
 
     const sendMessage = async () => {
         if ((!input.trim() && attachments.length === 0) || isLoading) return;
 
+        let finalInput = input;
+        let displayText = input;
+        const isImageReverse = input.includes("@图片反推");
+        const isVideoReverse = input.includes("@视频反推");
+
+        if (isImageReverse) {
+             finalInput = "你是专业的AI绘画提示词工程师，擅长从图片1:1精准反推可直接复现画面的完整绘画提示词。\n\n用户上传图片后，你仅执行一项任务：\n对图片进行极致详细、严谨可落地的拆解，生成能直接用于AI绘画的标准化提示词。\n\n输出规则（必须严格遵守）\n1. 画面主体\n人物/物体：明确种类、姿态、表情、动作、颜色、材质、比例、细节特征\n场景：区分室内/室外，标注具体地点、环境氛围、背景细节\n\n2. 构图与镜头\n景别：远景/中景/近景/特写等\n视角：平视/俯视/仰视/侧视等\n补充画幅比例、景深、镜头质感等关键参数\n\n3. 光影与色彩\n光线：自然光/人造光、柔光/硬光、主光源方向、光影层次\n色调：冷色/暖色、饱和度高低、胶片感/清新感/电影感等视觉质感\n\n4. 画风与质感\n艺术风格：写实/卡通/动漫/赛博朋克/治愈/电影质感等\n画质规格：8K、超高清、细节丰富、质感细腻等\n\n界面回传格式（强制固定）\n采用英文+中文对照结构，按以下格式输出：\n英文提示词：[完整可直接使用的英文提示词]\n中文提示词：[完整可直接使用的中文提示词]\n\n" + input.replace("@图片反推", "").trim();
+             displayText = input;
+        } else if (isVideoReverse) {
+             finalInput = "你是资深视频拉片分析师、AI 生视频提示词工程师，核心能力是从视频中 1:1 拆解可直接用于 AI 生视频的标准化拉片数据与风格总结。用户上传视频后，你需严格执行以下操作，仅输出拉片笔记表格与总结，无任何额外说明或补充。\n\n一、核心分析规则（强制遵守，无例外）\n1.逐镜头拆解：严格按照视频时间轴顺序划分镜头，不合并、不漏镜、不调整顺序，镜号从 1 开始连续编号。\n\n2.全维度精准识别（每镜头必须完整覆盖）：\n镜头参数：景别（仅限：远景、中景、近景、特写、大特写）；镜头运动（仅限：固定、推进、拉远、平移、旋转、跟随）\n画面信息：人物（动作、服装、表情）、物体（颜色、材质）、光线类型、场景细节、艺术风格\n音频信息：旁白（原话完整转录）、旁白语气、BGM 风格、环境音、特效音\n时长：估算每镜头持续时间，单位为秒，保留 1 位小数\n内容类型判定：自动识别视频核心类型（可标注 1-2 个）\n限定类目：赶海、美食、剧情、搞笑、特效、IP 角色、二次元、ASMR、纪实。\n\n二、输出格式（固定结构，可直接复制）\n1.视频拉片笔记\n镜号 | 景别 / 角度 | 运动 | 画面内容 | 音频 | 时长 (秒)\n1| | | | |\n2| | | | | \n2.总结\n画面风格：[精准概括视频核心画面风格，适配 AI 生视频提示词使用]\n音频风格：[精准概括视频核心音频风格，适配 AI 生视频提示词使用]\n\n" + input.replace("@视频反推", "").trim();
+             displayText = input;
+        }
+
         const userMsg: ChatMessage = {
             role: 'user',
-            text: input,
+            text: finalInput,
+            displayText: displayText,
             files: attachments.map(a => ({ type: a.type, data: a.preview, file: a.file }))
         };
 
@@ -835,7 +871,7 @@ const ChatView = ({
                 </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto bg-white no-scrollbar pb-48">
+            <div className="flex-1 overflow-y-auto bg-white no-scrollbar pb-80">
                 <div className="max-w-6xl mx-auto p-4 space-y-6">
                 {messages.map((msg, idx) => {
                     if (msg.isDivider) {
@@ -868,11 +904,11 @@ const ChatView = ({
                                     </div>
                                 )}
                                 <div className={`whitespace-pre-wrap font-sans ${msg.error ? 'text-red-500' : ''}`}>
-                                    {renderMessageContent(msg.text)}
+                                    {renderMessageContent(msg.displayText || msg.text)}
                                 </div>
                             </div>
-                            {msg.role === 'model' && !msg.error && (
-                                <div className="flex items-center gap-2 mt-2 px-1 opacity-100 transition-opacity">
+                            {msg.role === 'model' && !msg.error && msg.text !== INITIAL_CHAT_MESSAGE_TEXT && (
+                                <div className="flex items-center gap-2 mt-1 px-1 opacity-100 transition-opacity min-h-[40px] pb-2 mb-2">
                                         <button onClick={() => handleCopy(msg.text, idx)} className="p-2 rounded-full hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition-colors" title="复制">
                                             {copiedId === idx ? <Check className="w-4 h-4 text-green-500"/> : <Copy className="w-4 h-4"/>}
                                         </button>
@@ -891,9 +927,12 @@ const ChatView = ({
                 })}
                 {isLoading && (
                     <div className="flex justify-start">
-                        <div className="bg-white border border-gray-200 rounded-2xl p-4 flex items-center gap-2 shadow-sm">
-                            <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
-                            <span className="text-xs text-gray-400">Thinking...</span>
+                        <div className="bg-white border border-gray-200 rounded-2xl p-4 flex items-center gap-3 shadow-sm animate-pulse">
+                            <div className="relative">
+                                <Bot className="w-6 h-6 text-green-500 animate-bounce" />
+                                <div className="absolute -top-1 -right-1 w-2 h-2 bg-green-400 rounded-full animate-ping"></div>
+                            </div>
+                            <span className="text-sm font-medium text-gray-700">AI 正在思考中...</span>
                         </div>
                     </div>
                 )}
@@ -902,6 +941,14 @@ const ChatView = ({
             </div>
             
             <div className="absolute bottom-0 left-0 right-0 p-4 bg-white z-20">
+                <div className="max-w-6xl mx-auto mb-2 flex gap-2">
+                    <button onClick={() => setInput(prev => prev + "@图片反推")} className="text-sm font-medium bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-full border border-gray-200 transition-colors flex items-center gap-1.5 shadow-sm">
+                        <ImageIcon className="w-4 h-4" /> 图片反推
+                    </button>
+                    <button onClick={() => setInput(prev => prev + "@视频反推")} className="text-sm font-medium bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-full border border-gray-200 transition-colors flex items-center gap-1.5 shadow-sm">
+                        <Video className="w-4 h-4" /> 视频反推
+                    </button>
+                </div>
                 <div className="max-w-6xl mx-auto bg-[#F4F4F5] rounded-xl p-3 relative flex flex-col transition-all focus-within:bg-white focus-within:ring-2 focus-within:ring-gray-100 border border-transparent focus-within:border-gray-200">
                     <div className="flex-1 relative px-2 pt-2">
                          {attachments.length > 0 && (
@@ -1018,6 +1065,7 @@ const PRICE_DATA = [
     category: 'AI对话',
     items: [
       { m: 'Gemini-3-Flash', p: '提示0.210元/ 1M tokens，补全1.260元/ 1M tokens' },
+      { m: 'Gemini-3.1-Flash-Lite', p: '提示0.0.525元/ 1.00M tokens，补全3.150元/ 1.00M tokens' },
       { m: 'Gemini-3-Pro', p: '提示0.840元/ 1M tokens，补全5.040元/ 1M tokens' },
       { m: 'GPT-5-Mini', p: '提示0.105元/ 1M tokens，补全0.840元/ 1M tokens' }
     ]
@@ -1131,7 +1179,6 @@ const PriceView = () => {
 const App = () => {
   const [mainCategory, setMainCategory] = useState<MainCategory>('image');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [isMarqueeVisible, setIsMarqueeVisible] = useState(true);
   
   // Chat state moved here for persistence
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([{ role: 'model', text: INITIAL_CHAT_MESSAGE_TEXT }]);
@@ -1157,7 +1204,7 @@ const App = () => {
   const [klingDubVol, setKlingDubVol] = useState(1.0);
   const [klingSrcVol, setKlingSrcVol] = useState(0.0);
   const [isTransparent, setIsTransparent] = useState(false);
-  const [activeModal, setActiveModal] = useState<ModalType>('announcement');
+  const [activeModal, setActiveModal] = useState<ModalType>(null);
   const [previewAsset, setPreviewAsset] = useState<GeneratedAsset | null>(null);
   const [previewRefImage, setPreviewRefImage] = useState<ReferenceImage | null>(null);
   const [config, setConfig] = useState<AppConfig>({ baseUrl: FIXED_BASE_URL, apiKey: '' });
@@ -1222,11 +1269,10 @@ const App = () => {
   const isProxyMode = mainCategory === 'proxy';
   const isAudioMode = mainCategory === 'audio';
   const isChatMode = mainCategory === 'chat';
-  const isAnnouncementMode = mainCategory === 'announcement';
   const isResourcesMode = mainCategory === 'resources';
   
-  // Determine if we should show the full-width view (like Chat, Proxy, Announcement)
-  const isFullWidthMode = isChatMode || isProxyMode || isAnnouncementMode || isResourcesMode;
+  // Determine if we should show the full-width view (like Chat, Proxy, Resources)
+  const isFullWidthMode = isChatMode || isProxyMode || isResourcesMode;
 
   const handleSaveShortcut = () => {
     const appUrl = "https://" + APP_CONFIG.DESKTOP_SAVE_URL;
@@ -1360,7 +1406,7 @@ const App = () => {
 
   // ... (useEffects for models remain same) ...
   useEffect(() => {
-    if (!isVideoMode && !isProxyMode && !isAudioMode && !isChatMode && !isAnnouncementMode && !isResourcesMode) {
+    if (!isVideoMode && !isProxyMode && !isAudioMode && !isChatMode && !isResourcesMode) {
       const model = MODELS.find(m => m.id === selectedModel);
       if (model) {
         if (!model.supportedAspectRatios.includes(aspectRatio)) setAspectRatio(model.supportedAspectRatios[0]);
@@ -3183,7 +3229,6 @@ RoleName必须严格对应用户输入中的角色名。`;
                   { id: 'audio', icon: Mic, label: '语音', action: () => { setMainCategory('audio'); resetInputState(); }, active: mainCategory === 'audio' },
                   { id: 'resources', icon: FolderOpen, label: '资源', action: () => { setMainCategory('resources'); resetInputState(); }, active: mainCategory === 'resources' },
                   { id: 'proxy', icon: Shield, label: '代理', action: () => { setMainCategory('proxy'); resetInputState(); }, active: mainCategory === 'proxy' },
-                  { id: 'announcement', icon: Megaphone, label: '公告', action: () => { setMainCategory('announcement'); resetInputState(); }, active: mainCategory === 'announcement' },
                   { id: 'case', icon: BookOpen, label: '案例', action: () => { window.open(APP_CONFIG.CASE_URL, '_blank'); }, active: false },
                   { id: 'save', icon: Save, label: '保存', action: handleSaveShortcut, active: false },
               ].map(item => (
@@ -3263,60 +3308,6 @@ RoleName必须严格对应用户输入中的角色名。`;
                     setModelId={setChatModelId}
                 />
              </div>
-        ) : mainCategory === 'announcement' ? (
-            <div className="flex-1 bg-[#F8FAFC] overflow-y-auto p-4 md:p-8 min-h-0">
-                <div className="max-w-5xl mx-auto space-y-8 animate-in slide-in-from-bottom-4 fade-in duration-500">
-                    {/* Header */}
-                    <div className="bg-brand-yellow border-2 border-black p-6 md:p-10 brutalist-shadow relative overflow-hidden group">
-                        <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                            <Megaphone className="w-32 h-32 rotate-[-15deg]" />
-                        </div>
-                        <div className="relative z-10 space-y-2">
-                            <div className="inline-flex items-center gap-2 bg-black text-white px-3 py-1 text-xs font-bold uppercase tracking-wider border border-transparent">
-                                <span className="w-2 h-2 rounded-full bg-brand-red animate-pulse"></span>
-                                Notice Board
-                            </div>
-                            <h2 className="text-4xl md:text-5xl font-black italic uppercase tracking-tighter">最新公告</h2>
-                            <p className="text-lg font-medium opacity-80">了解本产品的最新动态与功能更新</p>
-                        </div>
-                    </div>
-
-                    {/* Alert Box */}
-                    <div className="bg-white border-2 border-black p-6 brutalist-shadow-sm flex flex-col md:flex-row gap-4 items-start md:items-center relative overflow-hidden">
-                        <div className="shrink-0 bg-brand-red text-white p-3 border border-black">
-                            <AlertCircle className="w-6 h-6" />
-                        </div>
-                        <div className="space-y-1">
-                            <h3 className="font-bold text-lg text-brand-red uppercase">重要提示 / IMPORTANT</h3>
-                            <p className="text-sm text-slate-700 font-medium">首次使用前，请务必在设置中配置您的 <span className="bg-brand-yellow px-1 border border-black text-xs">API令牌</span>，否则无法生成内容。</p>
-                        </div>
-                    </div>
-
-                    {/* Updates List */}
-                    <div className="bg-white border-2 border-black p-6 md:p-8 brutalist-shadow-sm space-y-6">
-                        <div className="flex items-center gap-3 border-b-2 border-black pb-4 mb-4">
-                            <Sparkles className="w-6 h-6 text-brand-yellow fill-black" />
-                            <h3 className="text-xl font-bold uppercase italic">版本更新日志</h3>
-                        </div>
-                        
-                        <div className="space-y-4">
-                             {[
-                                                               { title: "系统更新", desc: "支持代理跟随上级同步更新" },
-                               { title: "语音功能优化", desc: "语音多人模式输入方式已优化，支持直观的剧本编辑。" }
-                            ].map((item, idx) => (
-                                 <div key={idx} className="group relative py-4 border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors px-2">
-                                     <h4 className="font-bold text-base md:text-lg mb-2">{item.title}</h4>
-                                     <p className="text-sm md:text-base text-slate-600 leading-relaxed">{item.desc}</p>
-                                 </div>
-                             ))}
-                        </div>
-                        
-                        <div className="pt-6 mt-6 border-t border-dashed border-black/20 text-center">
-                            <span className="inline-block bg-slate-100 text-slate-500 px-3 py-1 rounded-full text-xs font-medium uppercase tracking-widest">More updates coming soon</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
         ) : mainCategory === 'resources' ? (
             <div className="flex-1 bg-[#F8FAFC] overflow-y-auto p-4 md:p-8 min-h-0">
                 <div className="max-w-5xl mx-auto space-y-8 animate-in slide-in-from-bottom-4 fade-in duration-500">
@@ -3756,7 +3747,7 @@ RoleName必须严格对应用户输入中的角色名。`;
           </section>
           )}
 
-          {!isChatMode && !isAnnouncementMode && !isProxyMode && !isResourcesMode && (
+          {!isChatMode && !isProxyMode && !isResourcesMode && (
           <section className="space-y-3">
              <SectionLabel 
                 text={isAudioMode ? "语音配置 / Voice Config" : "生成配置 / Generation Config"} 
@@ -4149,7 +4140,7 @@ RoleName必须严格对应用户输入中的角色名。`;
           )}
 
           <div className="space-y-3">
-            {!isChatMode && !isAnnouncementMode && !isProxyMode && !isResourcesMode && (
+            {!isChatMode && !isProxyMode && !isResourcesMode && (
               <>
                 <button onClick={() => executeGeneration()} className="w-full py-3 bg-brand-red text-white text-xl font-normal border border-black brutalist-shadow hover:translate-y-1.5 hover:shadow-none transition-all uppercase tracking-tighter">
                   开始创作/Start Creating
@@ -4207,33 +4198,6 @@ RoleName必须严格对应用户输入中的角色名。`;
            <button onClick={handleSelectAll} className="flex-shrink-0 flex items-center gap-2 border border-black px-3 py-1.5 text-xs font-normal brutalist-shadow-sm hover:translate-y-0.5 hover:shadow-none transition-all bg-white uppercase">
               {selectedAssetIds.size === generatedAssets.length && generatedAssets.length > 0 ? <CheckSquare className="w-4 h-4"/> : <Square className="w-4 h-4"/>} 全选
             </button>
-           
-           <button 
-              onClick={() => setIsMarqueeVisible(!isMarqueeVisible)} 
-              className="flex-shrink-0 flex items-center justify-center border border-black px-2 py-1.5 text-xs font-normal brutalist-shadow-sm hover:translate-y-0.5 hover:shadow-none transition-all bg-white uppercase"
-              title={isMarqueeVisible ? "关闭滚动公告" : "显示滚动公告"}
-           >
-              {isMarqueeVisible ? <MegaphoneOff className="w-4 h-4"/> : <Megaphone className="w-4 h-4"/>}
-           </button>
-
-           {isMarqueeVisible && (
-           <div className="flex-1 overflow-hidden">
-             <div className="animate-marquee whitespace-nowrap flex items-center gap-8">
-               <span className="text-base font-medium text-brand-red flex items-center gap-2">
-                  <AlertTriangle className="w-5 h-5" />
-                  本应用资产仅存储于用户本地浏览器中。
-               </span>
-               <span className="text-base font-medium text-brand-red flex items-center gap-2">
-                  <AlertCircle className="w-5 h-5" />
-                  生成内容时请勿刷新页面，否则容易中断。
-               </span>
-               <span className="text-base font-medium text-brand-red flex items-center gap-2">
-                  <Megaphone className="w-5 h-5" />
-                  如遇连续多次生成失败，优先尝试切换API令牌分组或者更换模型。
-               </span>
-             </div>
-           </div>
-           )}
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 pt-2 pb-6 no-scrollbar">
@@ -4699,7 +4663,7 @@ RoleName必须严格对应用户输入中的角色名。`;
             <X className="w-8 h-8 drop-shadow-md" />
           </button>
           
-          <div className="w-full h-full flex items-center justify-center p-2 md:p-4" onClick={e => e.stopPropagation()}>
+          <div className="w-full h-full flex items-center justify-center p-2 md:p-4">
              {previewAsset.type === 'image' ? (
                 <img src={previewAsset.url} className="max-w-full max-h-full object-contain shadow-2xl" />
              ) : (
@@ -4718,13 +4682,14 @@ RoleName必须严格对应用户输入中的角色名。`;
       )}
 
       {previewRefImage && (
-        <div className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center p-10" onClick={() => setPreviewRefImage(null)}>
-            <div className="relative max-w-full max-h-full">
-                <img src={previewRefImage.data.startsWith('http') ? previewRefImage.data : `data:${previewRefImage.mimeType};base64,${previewRefImage.data}`} className="max-w-full max-h-[90vh] object-contain border-4 border-white" />
-                <button onClick={() => setPreviewRefImage(null)} className="absolute -top-12 right-0 text-white hover:text-red-500">
-                    <X className="w-8 h-8"/>
-                </button>
-            </div>
+        <div className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center" onClick={() => setPreviewRefImage(null)}>
+          <button className="absolute top-6 right-6 text-white/70 hover:text-white transition-colors z-[110]" onClick={() => setPreviewRefImage(null)}>
+            <X className="w-8 h-8 drop-shadow-md" />
+          </button>
+          
+          <div className="w-full h-full flex items-center justify-center p-2 md:p-4">
+             <img src={previewRefImage.data.startsWith('http') ? previewRefImage.data : `data:${previewRefImage.mimeType};base64,${previewRefImage.data}`} className="max-w-full max-h-full object-contain shadow-2xl" />
+          </div>
         </div>
       )}
     </div>
