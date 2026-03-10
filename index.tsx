@@ -582,6 +582,7 @@ const ChatView = ({
     const [copiedId, setCopiedId] = useState<number | null>(null);
     const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
     const [isThinking, setIsThinking] = useState(false);
+    const abortControllerRef = useRef<AbortController | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -667,6 +668,13 @@ const ChatView = ({
     const generateResponse = async (history: ChatMessage[], retryModelId?: string) => {
         setIsLoading(true);
         const currentModelId = retryModelId || modelId;
+        
+        // Cancel any ongoing request
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+        }
+        abortControllerRef.current = new AbortController();
+        
         try {
             const key = ((config.selectedKeyIndex === 1 ? config.apiKey2 : config.apiKey) || (typeof process !== 'undefined' && process.env && process.env.API_KEY ? process.env.API_KEY : '')).trim();
             if (!key) throw new Error("请先设置API Key");
@@ -718,7 +726,8 @@ const ChatView = ({
                     model: targetModelId,
                     messages: messages,
                     stream: false
-                })
+                }),
+                signal: abortControllerRef.current.signal
             });
 
             const data = await res.json();
@@ -737,6 +746,11 @@ const ChatView = ({
             }
 
         } catch (error: any) {
+            if (error.name === 'AbortError') {
+                console.log('Request aborted');
+                setMessages(prev => [...prev, { role: 'system', text: '已停止生成', isDivider: true }]);
+                return;
+            }
             console.error("Generation error:", error);
             // Auto-switch logic
             if (!retryModelId) {
@@ -749,9 +763,20 @@ const ChatView = ({
             }
             setMessages(prev => [...prev, { role: 'model', text: `Error: ${error.message}`, error: true }]);
         } finally {
+            if (abortControllerRef.current?.signal.aborted === false) {
+                abortControllerRef.current = null;
+            }
             if (!retryModelId) {
                 setIsLoading(false);
             }
+        }
+    };
+
+    const stopGeneration = () => {
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+            abortControllerRef.current = null;
+            setIsLoading(false);
         }
     };
 
@@ -1036,11 +1061,11 @@ ${input.replace("@视频反推", "").trim()}`;
                          </div>
                          
                          <button 
-                            onClick={sendMessage}
-                            disabled={isLoading || (!input.trim() && attachments.length === 0)}
+                            onClick={isLoading ? stopGeneration : sendMessage}
+                            disabled={!isLoading && (!input.trim() && attachments.length === 0)}
                             className={`w-10 h-10 flex items-center justify-center rounded-full transition-all duration-200
                                 ${isLoading 
-                                    ? 'bg-gray-100 text-black cursor-not-allowed' 
+                                    ? 'bg-gray-100 text-black hover:bg-gray-200 shadow-sm cursor-pointer' 
                                     : (input.trim() || attachments.length > 0)
                                         ? 'bg-green-500 text-white hover:bg-green-600 shadow-md transform hover:scale-105'
                                         : 'bg-gray-200 text-gray-400 cursor-not-allowed'
@@ -1286,6 +1311,7 @@ const App = () => {
     { id: 'img-conv', name: '图片格式转换', desc: '支持JPG, PNG, BMP, WEBP等多种格式互转。', url: 'https://www.xunjietupian.com/', icon: 'ImageIcon' },
     { id: 'uu-remote', name: '网易UU远程', desc: '网易出品，免费高清流畅的远程控制软件。', url: 'https://uuyc.163.com', icon: 'Monitor' },
     { id: 'img-url', name: '图片转URL链接', desc: '快速将图片转换为在线URL链接。', url: 'https://lsky.zhongzhuan.chat', icon: 'Link' },
+    { id: 'watermark', name: '图片/PDF去水印', desc: 'Pilio.ai - 专业的图片与PDF在线去水印工具。', url: 'https://pilio.ai/zh', icon: 'Eraser' },
     { id: 'vpn', name: '科学上网（付费）', desc: '高速稳定的网络加速服务。', url: 'https://caomei888.top/#/register?code=iPB4QjfQ', icon: 'Globe' }
   ]);
   const [draggedResourceIdx, setDraggedResourceIdx] = useState<number | null>(null);
@@ -3383,6 +3409,7 @@ RoleName必须严格对应用户输入中的角色名。`;
                                               item.icon === 'Monitor' ? <Monitor className="w-6 h-6" /> : 
                                               item.icon === 'Link' ? <Link className="w-6 h-6" /> :
                                               item.icon === 'Globe' ? <Globe className="w-6 h-6" /> :
+                                              item.icon === 'Eraser' ? <Eraser className="w-6 h-6" /> :
                                               <ImageIcon className="w-6 h-6" />}
                                          </div>
                                          <div className="flex items-center gap-3">
