@@ -4246,7 +4246,7 @@ const App = () => {
                         </button>
                         <div className="overflow-hidden whitespace-nowrap w-full relative">
                             <div className="inline-block animate-marquee text-black text-xs font-normal">
-                                {APP_CONFIG.ANNOUNCEMENT}
+                                公告：1、本应用不储存用户资产，请及时下载；2、生成失败请重新生成，扣费自动返还；3、OpenClaw一键安装包见主站API文档。
                             </div>
                         </div>
                     </>
