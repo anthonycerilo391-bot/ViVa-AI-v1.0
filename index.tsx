@@ -1143,58 +1143,60 @@ const PRICE_DATA = [
   {
     category: 'AI对话',
     items: [
-      { m: 'Gemini-3-Flash', p: '提示0.210元/ 1M tokens，补全1.260元/ 1M tokens' },
-      { m: 'Gemini-3.1-Flash-Lite', p: '提示0.0.525元/ 1.00M tokens，补全3.150元/ 1.00M tokens' },
-      { m: 'Gemini-3-Pro', p: '提示0.840元/ 1M tokens，补全5.040元/ 1M tokens' },
-      { m: 'GPT-5-Mini', p: '提示0.105元/ 1M tokens，补全0.840元/ 1M tokens' }
+      { m: 'Gemini-3-Flash', p: '提示0.28元/ 1M tokens，补全1.68元/ 1M tokens' },
+      { m: 'Gemini-3-Pro-Preview', p: '提示1.12元/ 1M tokens，补全6.72元/ 1M tokens' },
+      { m: 'Gemini-3.1-Flash-Lite', p: '提示0.26元/ 1M tokens，补全1.58元/ 1M tokens' },
+      { m: 'GPT-5-Mini', p: '提示0.11元/ 1M tokens，补全0.84元/ 1M tokens' }
     ]
   },
   {
     category: '图片创作',
     items: [
       { m: 'Gemini-2.5-Flash-Image', p: '0.063元/张' },
-      { m: 'Gemini-3.1-Flash-Image', p: '1K/2K 0.070元/张，4K 0.087元/张' },
-      { m: 'Gemini-3-Pro-Image', p: '1K/2K 0.139元/张，4K 0.248元/张' },
-      { m: 'KLING Image O1', p: '0.241元/张' },
-      { m: 'GPT Image 1', p: '0.056元/张' },
-      { m: 'GPT Image 1.5', p: '0.056元/张' },
+      { m: 'Gemini-3.1-Flash-Image', p: '1K/2K 0.166元/张，4K 0.296元/张' },
+      { m: 'Gemini-3-Pro-Image', p: '1K/2K 0.231元/张，4K 0.591元/张' },
+      { m: 'Kling Image O1', p: '0.238元/张' },
+      { m: 'GPT Image 1', p: '0.055元/张' },
+      { m: 'GPT Image 1.5', p: '0.055元/张' },
       { m: 'Grok 4 Image', p: '0.056元/张' },
     ]
   },
   {
     category: '视频创作',
     items: [
-      { m: 'Sora-2-all', p: '0.140元/条' },
-      { m: 'Sora-2-vip-all', p: '1.750元/条' },
+      { m: 'Sora-2-all（不可用）', p: 'default分组 0.14元/条' },
+      { m: 'Sora-2-vip-all（成功率低）', p: 'sora-vip分组 1.75元/条' },
       { m: 'Sora-2', p: <div className="flex flex-col items-end text-right">
-        <div>官转 0.210元/秒</div>
-        <div>官转OpenAI分组 0.420元/秒</div>
-        <div>优质官转OpenAI分组 0.560元/秒</div>
+        <div>官转 0.21元/秒</div>
+        <div>官转Open AI分组 0.42元/秒</div>
+        <div>优质官转Open AI分组 0.56元/秒</div>
       </div> },
       { m: 'Sora-2-Pro-All', p: '2.520元/条' },
-      { m: 'veo_3_1-fast', p: '0.181元/条' },
-      { m: 'veo_3_1-fast-4K', p: '0.181元/条' },
-      { m: 'veo_3_1-fast-components-4K', p: '0.361元/条' },
-      { m: 'veo_3_1', p: '0.307元/条' },
-      { m: 'veo_3_1-4K', p: '0.357元/条' },
-      { m: 'veo_3_1-components', p: '0.307元/条' },
-      { m: 'veo_3_1-components-4K', p: '0.357元/条' },
+      { m: 'veo_3_1-fast', p: '0.301元/条' },
+      { m: 'veo_3_1-fast-4K', p: '0.301元/条' },
+      { m: 'veo_3_1-fast-components-4K', p: '0.602元/条' },
+      { m: 'veo_3_1', p: '0.511元/条' },
+      { m: 'veo_3_1-4K', p: '0.595元/条' },
+      { m: 'veo_3_1-components', p: '0.511元/条' },
+      { m: 'veo_3_1-components-4K', p: '0.595元/条' },
       { m: 'veo3.1-fast', p: '0.490元/条' },
-      { m: 'veo3.1-fast-components', p: '0.109元/条' },
+      { m: 'veo3.1-fast-components', p: '0.182元/条' },
       { m: 'veo3.1', p: '0.490元/条' },
       { m: 'veo3.1-4k', p: '0.700元/条' },
-      { m: 'veo3.1-components', p: '0.294元/条' },
+      { m: 'veo3.1-components', p: '0.490元/条' },
       { m: 'veo3.1-components-4k', p: '0.700元/条' },
       { m: 'veo3.1-pro-4k', p: '2.450元/条' },
-      { m: 'Grok Video 3', p: '0.140元/6秒，0.280元/10秒，0.350元/15秒' },
-      { m: 'KLING Control Std (动作转移)', p: '0.595元/秒' },
-      { m: 'KLING Control Pro (动作转移)', p: '0.952元/秒' },
+      { m: 'Grok Video 3', p: '0.280元/6秒，0.280元/10秒，0.350元/15秒' },
+      { m: 'Kling Control Std (动作转移)', p: '0.595元/秒' },
+      { m: 'Kling Control Pro (动作转移)', p: '0.952元/秒' },
+      { m: 'KLING Avatar Std (数字人)', p: '1.190元/秒' },
+      { m: 'KLING Avatar Pro (数字人)', p: '2.380元/秒' },
     ]
   },
   {
     category: '语音合成',
     items: [
-      { m: 'Gemini 2.5 Pro TTS', p: '提示0.700元/ 1M tokens，补全14.000元/ 1M tokens' },
+      { m: 'Gemini 2.5 Pro TTS', p: '提示1.05元/ 1M tokens，补全21.00元/ 1M tokens' },
     ]
   }
 ];
@@ -2567,14 +2569,17 @@ const App = () => {
             responseModalities: ["AUDIO"]
         };
 
-        if (tAudioMode === 'single') {
+        if (tAudioMode === 'single' || tSpeakerMap.length === 1) {
+            const voiceToUse = tAudioMode === 'single' ? tVoice : tSpeakerMap[0].voice;
             generationConfig.speechConfig = {
                 voiceConfig: {
-                    prebuiltVoiceConfig: { voiceName: tVoice }
+                    prebuiltVoiceConfig: { voiceName: voiceToUse }
                 }
             };
         } else {
              if (tSpeakerMap.length === 0) throw new Error("Please add at least one speaker");
+             if (tSpeakerMap.length > 2) throw new Error("目前多角色模式仅支持 2 个角色，请删除多余角色");
+             
              generationConfig.speechConfig = {
                 multiSpeakerVoiceConfig: {
                     speakerVoiceConfigs: tSpeakerMap.map((s: any) => ({
@@ -4159,10 +4164,10 @@ const App = () => {
 
                   <div className="relative group">
                       {isAudioMode ? (
-                          <div className="flex flex-col gap-2 overflow-y-auto border border-black p-2">
+                          <div className="flex flex-col gap-4 overflow-y-auto max-h-[500px] no-scrollbar">
                              {dialogueLines.map((line, idx) => (
-                                 <div key={line.id} className="bg-white border border-black p-2 shadow-sm flex flex-col gap-2 animate-in slide-in-from-bottom-2 fade-in">
-                                    <div className="flex justify-between items-center bg-brand-cream border-b border-black/10 pb-1 mb-1 px-1">
+                                 <div key={line.id} className="flex flex-col gap-1 animate-in slide-in-from-bottom-2 fade-in">
+                                    <div className="flex justify-between items-center px-1">
                                         <select 
                                             value={line.speakerId} 
                                             onChange={e => {
@@ -4314,8 +4319,8 @@ const App = () => {
                             <X className="w-4 h-4" />
                         </button>
                         <div className="overflow-hidden whitespace-nowrap w-full relative">
-                            <div className="inline-block animate-marquee text-black text-xs font-normal">
-                                公告：1、本应用不储存用户资产，请及时下载；2、生成失败请重新生成，扣费自动返还；3、OpenClaw一键安装包见主站API文档。
+                            <div className="inline-block animate-marquee text-black text-sm font-normal">
+                                公告：1、本应用不储存用户资产，请及时下载；2、生成失败请重新生成，扣费自动返还；3、如遇连续失败，请暂时切换分组或者切换其它模型使用。
                             </div>
                         </div>
                     </>
