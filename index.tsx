@@ -154,7 +154,7 @@ const MODELS: ModelDefinition[] = [
     features: ['fast', 'preview'],
     maxImages: 4,
     supportedAspectRatios: GEMINI_3_1_RATIOS,
-    supportedResolutions: ['0.5K', '1K', '2K', '4K']
+    supportedResolutions: ['512px', '1K', '2K', '4K']
   },
   { 
     id: 'gemini-3-pro-image-preview', 
