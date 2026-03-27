@@ -1,3 +1,5 @@
+import JSZip from 'jszip';
+import { saveAs } from 'file-saver';
 import React, { useState, useEffect, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import { APP_CONFIG } from './src/app_config';
@@ -3195,41 +3197,21 @@ const App = () => {
     const assets = generatedAssets.filter(a => selectedAssetIds.has(a.id) && a.url);
     if (assets.length === 0) return;
 
-    for (let i = 0; i < assets.length; i++) {
-        const asset = assets[i];
+    const zip = new JSZip();
+    
+    for (const asset of assets) {
         try {
-            let downloadUrl = asset.url;
-            let shouldRevoke = false;
-
-            // Attempt to fetch as blob to bypass CORS/Content-Disposition issues
-            try {
-                const response = await fetch(asset.url);
-                const blob = await response.blob();
-                downloadUrl = window.URL.createObjectURL(blob);
-                shouldRevoke = true;
-            } catch (e) {
-                console.warn("Fetch failed, using original URL", e);
-            }
-
-            const link = document.createElement('a');
-            link.href = downloadUrl;
-            link.download = `viva-${asset.id}.${asset.type === 'video' ? 'mp4' : asset.type === 'audio' ? 'wav' : 'png'}`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-
-            if (shouldRevoke) {
-                setTimeout(() => window.URL.revokeObjectURL(downloadUrl), 5000);
-            }
+            const response = await fetch(asset.url);
+            const blob = await response.blob();
+            const extension = asset.type === 'video' ? 'mp4' : asset.type === 'audio' ? 'wav' : 'png';
+            zip.file(`viva-${asset.id}.${extension}`, blob);
         } catch (e) {
-            console.error("Download failed for", asset.id, e);
-        }
-
-        // Add delay to avoid browser blocking multiple downloads
-        if (i < assets.length - 1) {
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            console.error("Failed to add asset to zip", asset.id, e);
         }
     }
+
+    const content = await zip.generateAsync({type:"blob"});
+    saveAs(content, "viva-assets.zip");
   };
 
   const handleAssetDownload = async (asset: GeneratedAsset, e: React.MouseEvent) => {
