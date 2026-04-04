@@ -1,6 +1,12 @@
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import React, { useState, useEffect, useRef } from 'react';
+import ReactMarkdown from 'react-markdown';
+import * as pdfjsLib from 'pdfjs-dist';
+import mammoth from 'mammoth';
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+
 import { createRoot } from 'react-dom/client';
 import { APP_CONFIG } from './src/app_config';
 import { formatPriceString } from './pricing';
@@ -93,7 +99,7 @@ interface ChatMessage {
     role: 'user' | 'model' | 'system';
     text: string;
     displayText?: string;
-    files?: { type: string; data: string; file?: File }[];
+    files?: { type: string; data: string; file?: File; extractedText?: string }[];
     error?: boolean;
     isDivider?: boolean;
 }
@@ -206,10 +212,11 @@ const MODELS: ModelDefinition[] = [
 ];
 
 const CHAT_MODELS = [
-    { id: 'gemini-3-flash-preview', name: 'Gemini 3 Flash' },
     { id: 'gemini-3.1-flash-lite-preview', name: 'Gemini-3.1-Flash-Lite' },
     { id: 'gemini-3.1-pro-preview', name: 'Gemini-3.1-Pro' },
-    { id: 'gpt-5-mini', name: 'GPT 5 Mini' },
+    { id: 'gpt-5.4', name: 'GPT 5.4' },
+    { id: 'gpt-5.4-mini', name: 'GPT 5.4 Mini' },
+    { id: 'gpt-5.4-nano', name: 'GPT 5.4 Nano' },
 ];
 
 const MODEL_CAPABILITIES: Record<string, { image: boolean; audio: boolean; video: boolean; pdf: boolean; any?: boolean }> = {
@@ -217,8 +224,9 @@ const MODEL_CAPABILITIES: Record<string, { image: boolean; audio: boolean; video
     'gemini-3-flash-preview': { image: true, audio: true, video: true, pdf: true },
     'gemini-3.1-flash-lite-preview': { image: true, audio: true, video: true, pdf: true },
     'gemini-3.1-pro-preview': { image: true, audio: true, video: true, pdf: true, any: true },
-    'gpt-5.2': { image: true, audio: true, video: true, pdf: true },
-    'gpt-5-mini': { image: true, audio: false, video: false, pdf: true },
+    'gpt-5.4': { image: true, audio: false, video: false, pdf: true },
+    'gpt-5.4-mini': { image: true, audio: false, video: false, pdf: true },
+    'gpt-5.4-nano': { image: true, audio: false, video: false, pdf: true },
     'grok-4.1': { image: true, audio: false, video: false, pdf: true },
 };
 
@@ -527,26 +535,7 @@ const deleteAssetFromDB = async (id: string) => {
 };
 
 const renderMessageContent = (text: string) => {
-    const codeBlockRegex = /(```[\s\S]*?```)/g;
-    const segments = text.split(codeBlockRegex);
-    
-    return segments.map((segment, i) => {
-        if (segment.startsWith('```') && segment.endsWith('```')) {
-            return <span key={i}>{segment}</span>;
-        }
-        
-        const parts = segment.split(/(\*\*[\s\S]+?\*\*)/g);
-        return (
-            <span key={i}>
-                {parts.map((part, j) => {
-                     if (part.startsWith('**') && part.endsWith('**') && part.length >= 4) {
-                         return <strong key={j} className="font-bold">{part.slice(2, -2)}</strong>;
-                     }
-                     return part;
-                })}
-            </span>
-        );
-    });
+    return <ReactMarkdown>{text}</ReactMarkdown>;
 };
 
 // --- ChatView Component ---
@@ -559,8 +548,8 @@ interface ChatViewProps {
     setInput: React.Dispatch<React.SetStateAction<string>>;
     isLoading: boolean;
     setIsLoading: React.Dispatch<React.SetStateAction<boolean>>;
-    attachments: { file: File, preview: string, type: string }[];
-    setAttachments: React.Dispatch<React.SetStateAction<{ file: File, preview: string, type: string }[]>>;
+    attachments: { file: File, preview: string, type: string, extractedText?: string }[];
+    setAttachments: React.Dispatch<React.SetStateAction<{ file: File, preview: string, type: string, extractedText?: string }[]>>;
     setActiveModal: (modal: ModalType) => void;
     modelId: string;
     setModelId: React.Dispatch<React.SetStateAction<string>>;
@@ -599,40 +588,73 @@ const ChatView = ({
         let hasUnsupported = false;
 
         const validFiles = Array.from(files).filter((file: File) => {
-             // If model supports any file type, skip specific checks
              if (capabilities?.any) return true;
 
              let type = 'file';
              if (file.type.startsWith('image/')) type = 'image';
              else if (file.type.startsWith('audio/')) type = 'audio';
              else if (file.type.startsWith('video/')) type = 'video';
-             else if (file.type === 'application/pdf') type = 'pdf';
+             else if (file.type === 'application/pdf' || file.name.endsWith('.pdf') || file.name.endsWith('.txt') || file.name.endsWith('.doc') || file.name.endsWith('.docx') || file.type === 'text/plain') type = 'document';
              
              if (capabilities) {
                  if (type === 'image' && !capabilities.image) { hasUnsupported = true; return false; }
                  if (type === 'audio' && !capabilities.audio) { hasUnsupported = true; return false; }
                  if (type === 'video' && !capabilities.video) { hasUnsupported = true; return false; }
-                 if (type === 'pdf' && !capabilities.pdf) { hasUnsupported = true; return false; }
+                 if (type === 'document' && !capabilities.pdf) { hasUnsupported = true; return false; }
              }
              return true;
         });
 
         if (hasUnsupported) {
-            alert('该模型不支持该文件类型');
+            alert('不支持该文件格式');
         }
 
-        validFiles.forEach((file: File) => {
+        validFiles.forEach(async (file: File) => {
+            let type = 'file';
+            if (file.type.startsWith('image/')) type = 'image';
+            else if (file.type.startsWith('audio/')) type = 'audio';
+            else if (file.type.startsWith('video/')) type = 'video';
+            else if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) type = 'pdf';
+            else if (file.name.endsWith('.txt') || file.type === 'text/plain') type = 'txt';
+            else if (file.name.endsWith('.docx') || file.name.endsWith('.doc')) type = 'docx';
+
+            let extractedText = '';
+
+            if (type === 'txt') {
+                extractedText = await file.text();
+            } else if (type === 'pdf') {
+                try {
+                    const arrayBuffer = await file.arrayBuffer();
+                    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                    let text = '';
+                    for (let i = 1; i <= pdf.numPages; i++) {
+                        const page = await pdf.getPage(i);
+                        const content = await page.getTextContent();
+                        text += content.items.map((item: any) => item.str).join(' ') + '\n';
+                    }
+                    extractedText = text;
+                } catch (e) {
+                    console.error("PDF parse error", e);
+                }
+            } else if (type === 'docx') {
+                try {
+                    const arrayBuffer = await file.arrayBuffer();
+                    const result = await mammoth.extractRawText({ arrayBuffer });
+                    extractedText = result.value;
+                } catch (e) {
+                    console.error("DOCX parse error", e);
+                    try {
+                        extractedText = await file.text();
+                    } catch (e2) {
+                        console.error("Fallback text parse error", e2);
+                    }
+                }
+            }
+
             const reader = new FileReader();
             reader.onload = (ev) => {
                 const result = ev.target?.result as string;
-                let type = 'file';
-                if (file.type.startsWith('image/')) type = 'image';
-                else if (file.type.startsWith('audio/')) type = 'audio';
-                else if (file.type.startsWith('video/')) type = 'video';
-                else if (file.type === 'application/pdf') type = 'pdf';
-                // else type remains 'file' for unsupported mime types if allowed by ANY
-                
-                setAttachments(prev => [...prev, { file, preview: result, type }]);
+                setAttachments(prev => [...prev, { file, preview: result, type, extractedText }]);
             };
             reader.readAsDataURL(file);
         });
@@ -713,10 +735,22 @@ const ChatView = ({
                     const content: any[] = [{ type: "text", text: msg.text }];
                     msg.files.forEach(f => {
                          const isGemini = targetModelId.startsWith('gemini');
-                         if (f.type === 'image' || (f.file && f.file.type.startsWith('image/')) || isGemini) {
+                         if (f.type === 'image' || (f.file && f.file.type.startsWith('image/'))) {
                              content.push({
                                  type: "image_url",
                                  image_url: { url: f.data }
+                             });
+                         } else if (isGemini && (f.type === 'audio' || f.type === 'video')) {
+                             content.push({
+                                 type: "image_url",
+                                 image_url: { url: f.data }
+                             });
+                         }
+                         
+                         if (f.extractedText) {
+                             content.push({
+                                 type: "text",
+                                 text: `\n--- 文件内容 (${f.file?.name || 'document'}) ---\n${f.extractedText}\n--- 文件结束 ---\n`
                              });
                          }
                     });
@@ -840,7 +874,7 @@ ${input.replace("@视频反推", "").trim()}`;
             role: 'user',
             text: finalInput,
             displayText: displayText,
-            files: attachments.map(a => ({ type: a.type, data: a.preview, file: a.file }))
+            files: attachments.map(a => ({ type: a.type, data: a.preview, file: a.file, extractedText: a.extractedText }))
         };
 
         const newHistory = [...messages, userMsg];
@@ -869,6 +903,7 @@ ${input.replace("@视频反推", "").trim()}`;
     };
 
     const handleNewTopic = () => {
+        stopGeneration();
         setMessages([{ role: 'model', text: INITIAL_CHAT_MESSAGE_TEXT }]);
         setInput('');
         setAttachments([]);
@@ -876,10 +911,12 @@ ${input.replace("@视频反推", "").trim()}`;
     };
 
     const handleClearInput = () => {
+        stopGeneration();
         setInput('');
     };
     
     const handleClearContext = () => {
+        stopGeneration();
         // Prevent adding multiple dividers in a row
         if (messages.length > 0 && !messages[messages.length - 1].isDivider) {
              setMessages(prev => [...prev, { role: 'system', text: '上下文已清除 / Context Cleared', isDivider: true }]);
@@ -967,7 +1004,7 @@ ${input.replace("@视频反推", "").trim()}`;
                                         {msg.files.map((f, i) => (
                                             <div key={i} className={`px-2 py-1 text-xs rounded flex items-center gap-1 ${msg.role === 'user' ? 'bg-white' : 'bg-gray-100'}`}>
                                                 {getIconForType(f.type === 'application/pdf' ? 'pdf' : f.type.split('/')[0])}
-                                                {f.type.includes('image') ? 'Image' : 'File'}
+                                                {f.file ? f.file.name : (f.type.includes('image') ? 'Image' : 'File')}
                                             </div>
                                         ))}
                                     </div>
@@ -1045,6 +1082,17 @@ ${input.replace("@视频反推", "").trim()}`;
                             onChange={(e) => setInput(e.target.value)}
                             onKeyDown={(e) => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
                             placeholder="在这里输入消息，按 Enter 发送"
+                            onPaste={(e) => {
+                                const items = e.clipboardData.items;
+                                for (let i = 0; i < items.length; i++) {
+                                    if (items[i].type.indexOf("image") !== -1) {
+                                        const file = items[i].getAsFile();
+                                        if (file) {
+                                            processFiles([file]);
+                                        }
+                                    }
+                                }
+                            }}
                             className="w-full bg-transparent border-none resize-none focus:ring-0 outline-none text-base text-gray-800 placeholder:text-gray-400 min-h-[72px] max-h-[144px] overflow-y-auto chat-input-scrollbar"
                         />
                     </div>
@@ -1059,13 +1107,12 @@ ${input.replace("@视频反推", "").trim()}`;
                                     ref={fileInputRef} 
                                     className="hidden" 
                                     multiple 
-                                    accept={MODEL_CAPABILITIES[modelId]?.any ? "*" : "image/*,audio/*,video/*,application/pdf"}
+                                    accept="*"
                                     onChange={handleFileSelect}
                                  />
                              </button>
                              <button onClick={() => setActiveModal('library')} className="text-gray-600 hover:bg-gray-200 rounded-full p-2 transition-colors" title="快捷短语"><Zap className="w-5 h-5"/></button>
                              <button onClick={handleClearInput} className="text-gray-600 hover:bg-gray-200 rounded-full p-2 transition-colors" title="清空输入"><Brush className="w-5 h-5"/></button>
-                             <button onClick={() => setActiveModal('edit-prompt')} className="text-gray-600 hover:bg-gray-200 rounded-full p-2 transition-colors" title="展开"><Maximize2 className="w-5 h-5"/></button>
                              <button onClick={handleClearContext} className="text-gray-600 hover:bg-gray-200 rounded-full p-2 transition-colors" title="清除上下文"><Eraser className="w-5 h-5"/></button>
                              {modelId === 'gemini-3.1-pro-preview' && (
                                 <button
@@ -1135,16 +1182,17 @@ const ModalHeader = ({ title, icon: Icon, onClose, bgColor = "bg-brand-yellow" }
 
 const PRICE_DATA = [
   {
-    category: 'AI对话',
+    category: '文本模型',
     items: [
-      { m: 'Gemini-3-Flash', p: '提示0.28元/ 1M tokens，补全1.68元/ 1M tokens' },
-      { m: 'Gemini-3.1-Pro-Preview', p: '提示1.12元/ 1M tokens，补全6.72元/ 1M tokens' },
-      { m: 'Gemini-3.1-Flash-Lite', p: '提示0.26元/ 1M tokens，补全1.58元/ 1M tokens' },
-      { m: 'GPT-5-Mini', p: '提示0.11元/ 1M tokens，补全0.84元/ 1M tokens' }
+      { m: 'Gemini-3.1-Flash-Lite', p: '提示0.263元/1M tokens，补全1.575元/1M tokens' },
+      { m: 'Gemini-3.1-Pro', p: '提示1.120元/1M tokens，补全6.720元/1M tokens' },
+      { m: 'GPT-5.4', p: '提示1.050元/1M tokens，补全6.300元/1M tokens' },
+      { m: 'GPT-5.4-Mini', p: '提示0.315元/1M tokens，补全1.890元/1M tokens' },
+      { m: 'GPT-5.4-Nano', p: '提示0.084元/1M tokens，补全0.504元/1M tokens' }
     ]
   },
   {
-    category: '图片创作',
+    category: '图片模型',
     items: [
       { m: 'Gemini-2.5-Flash-Image', p: '0.063元/张' },
       { m: 'Gemini-3.1-Flash-Image', p: '1K/2K 0.116元/张，4K 0.207元/张' },
@@ -1156,7 +1204,7 @@ const PRICE_DATA = [
     ]
   },
   {
-    category: '视频创作',
+    category: '视频模型',
     items: [
       { m: 'Sora-2-all', p: 'default分组 0.14元/条' },
       { m: 'Sora-2(官转按秒计费)', p: <div className="flex flex-col items-end text-right">
@@ -1179,7 +1227,7 @@ const PRICE_DATA = [
       { m: 'veo3.1-components', p: '0.490元/条' },
       { m: 'veo3.1-components-4k', p: '0.700元/条' },
       { m: 'veo3.1-pro-4k', p: '2.450元/条' },
-      { m: 'Grok Video 3', p: '0.280元/6秒，0.280元/10秒，0.350元/15秒' },
+      { m: 'Grok Video 3', p: '0.280元/6秒，0.280元/10秒' },
       { m: 'Kling Control Std (动作转移)', p: '0.595元/秒' },
       { m: 'Kling Control Pro (动作转移)', p: '0.952元/秒' },
       { m: 'KLING Avatar Std (数字人)', p: '1.190元/秒' },
@@ -1195,55 +1243,56 @@ const PRICE_DATA = [
 ];
 
 const PriceView = () => {
-    const [expanded, setExpanded] = useState<Record<number, boolean>>(
-        PRICE_DATA.reduce((acc, cat, idx) => ({...acc, [idx]: cat.category === '图片创作'}), {})
-    );
-
-    const toggle = (idx: number) => {
-        setExpanded(prev => ({...prev, [idx]: !prev[idx]}));
-    };
-
     return (
-        <div className="p-0 overflow-y-auto no-scrollbar flex-1 bg-slate-50">
+        <div className="p-4 md:p-6 overflow-y-auto no-scrollbar flex-1 bg-white space-y-6">
             {PRICE_DATA.map((cat, idx) => (
-                <div key={idx} className="border-b-2 border-black last:border-b-0">
-                  <div 
-                    onClick={() => toggle(idx)}
-                    className="bg-brand-yellow px-5 py-2 border-b border-black flex items-center justify-between gap-2 sticky top-0 z-10 shadow-sm cursor-pointer hover:bg-yellow-500 transition-colors select-none"
-                  >
-                    <div className="flex items-center gap-3">
-                        <span className="text-xl font-bold uppercase tracking-tight">{cat.category}</span>
+                <div key={idx} className="border-2 border-black rounded-xl p-4 md:p-5 bg-white">
+                    <div className="border-b-[3px] border-black pb-2 mb-4">
+                        <h3 className="text-xl font-bold text-black">{cat.category}</h3>
                     </div>
-                    <ChevronDown className={`w-6 h-6 transition-transform duration-300 ${expanded[idx] ? 'rotate-180' : 'rotate-0'}`} />
-                  </div>
-                  
-                  <div className={`overflow-hidden transition-all duration-300 ease-in-out ${expanded[idx] ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'}`}>
-                      <div className="divide-y divide-black/5 bg-white">
-                        {cat.items.map((item, iidx) => (
-                          <div key={iidx} className="flex justify-between items-center px-6 py-2 hover:bg-brand-cream transition-colors group">
-                            <span className="text-lg font-medium text-slate-800 group-hover:text-black">{item.m}</span>
-                            <span className="text-base font-medium text-black">
-                                {typeof item.p === 'string' ? formatPriceString(item.p) : (
-                                  <div className="flex flex-col items-end text-right">
-                                    {/* 递归处理 JSX 中的文本内容 */}
+                    <div className="space-y-2.5">
+                        {cat.items.map((item, iidx) => {
+                            const isTextModel = cat.category === '文本模型';
+                            const decimals = isTextModel ? 3 : undefined;
+                            
+                            let priceContent;
+                            if (typeof item.p === 'string') {
+                                if (item.p.includes('，')) {
+                                    const parts = item.p.split('，');
+                                    priceContent = (
+                                        <div className="flex flex-col sm:flex-row gap-2 sm:gap-12 text-gray-500 text-sm font-medium">
+                                            {parts.map((p, i) => <span key={i}>{formatPriceString(p.trim(), decimals)}</span>)}
+                                        </div>
+                                    );
+                                } else {
+                                    priceContent = <span className="text-gray-500 text-sm font-medium">{formatPriceString(item.p, decimals)}</span>;
+                                }
+                            } else {
+                                priceContent = (
+                                  <div className="flex flex-col items-end text-right text-gray-500 text-sm font-medium">
                                     {React.Children.map(item.p.props.children, (child) => {
-                                      if (typeof child === 'string') return <div>{formatPriceString(child)}</div>;
+                                      if (typeof child === 'string') return <div>{formatPriceString(child, decimals)}</div>;
                                       if (React.isValidElement(child)) {
                                         return React.cloneElement(child as React.ReactElement, {
                                           children: React.Children.map((child as React.ReactElement).props.children, (c) => 
-                                            typeof c === 'string' ? formatPriceString(c) : c
+                                            typeof c === 'string' ? formatPriceString(c, decimals) : c
                                           )
                                         });
                                       }
                                       return child;
                                     })}
                                   </div>
-                                )}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                  </div>
+                                );
+                            }
+
+                            return (
+                                <div key={iidx} className="flex flex-col md:flex-row justify-between items-start md:items-center px-4 py-2.5 border-2 border-black rounded-lg bg-white gap-2">
+                                    <span className="text-base font-bold text-black">{item.m}</span>
+                                    {priceContent}
+                                </div>
+                            );
+                        })}
+                    </div>
                 </div>
             ))}
         </div>
@@ -1401,7 +1450,7 @@ const App = () => {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([{ role: 'model', text: INITIAL_CHAT_MESSAGE_TEXT }]);
   const [chatInput, setChatInput] = useState('');
   const [isChatLoading, setIsChatLoading] = useState(false);
-  const [chatAttachments, setChatAttachments] = useState<{ file: File, preview: string, type: string }[]>([]);
+  const [chatAttachments, setChatAttachments] = useState<{ file: File, preview: string, type: string, extractedText?: string }[]>([]);
   const [chatModelId, setChatModelId] = useState('gemini-3-flash-preview');
 
   const [selectedModel, setSelectedModel] = useState(MODELS[0].id);
@@ -1475,6 +1524,7 @@ const App = () => {
     { id: 'uu-remote', name: '网易UU远程', desc: '网易出品，免费高清流畅的远程控制软件。', url: 'https://uuyc.163.com', icon: 'Monitor' },
     { id: 'img-url', name: '图片转URL链接', desc: '快速将图片转换为在线URL链接。', url: 'https://lsky.zhongzhuan.chat', icon: 'Link' },
     { id: 'watermark', name: '图片/PDF去水印', desc: 'Pilio.ai - 专业的图片与PDF在线去水印工具。', url: 'https://pilio.ai/zh', icon: 'Eraser' },
+    { id: 'md-editor', name: 'Markdown编辑器', desc: '在线 Markdown 实时编辑器，支持一边写一边预览效果，并可快速发布文档。', url: 'https://doocs.gitee.io/md', icon: 'FileText' },
     { id: 'vpn', name: '科学上网（付费）', desc: '高速稳定的网络加速服务。', url: 'https://caomei888.top/#/register?code=iPB4QjfQ', icon: 'Globe' }
   ]);
   const [draggedResourceIdx, setDraggedResourceIdx] = useState<number | null>(null);
@@ -2272,7 +2322,7 @@ const App = () => {
         ];
 
       let lastError = null;
-      const modelsToTry = ['gpt-5-mini', 'gemini-3-flash-preview', 'gemini-3.1-pro-preview'];
+      const modelsToTry = CHAT_MODELS.map(m => m.id);
       
       for (const model of modelsToTry) {
         try {
@@ -2340,7 +2390,7 @@ const App = () => {
         ];
 
       let lastError = null;
-      const modelsToTry = ['gpt-5-mini', 'gemini-3-flash-preview', 'gemini-3.1-pro-preview'];
+      const modelsToTry = CHAT_MODELS.map(m => m.id);
       
       for (const model of modelsToTry) {
         try {
@@ -3534,7 +3584,7 @@ const App = () => {
 
       <div className="flex-1 flex flex-col min-w-0 h-full relative">
         {/* Shared Header */}
-        <header className="bg-brand-yellow pl-5 pr-5 border-b-2 border-black h-12 flex items-center justify-between z-30 shrink-0">
+        <header className="bg-brand-yellow pl-2 pr-5 border-b-2 border-black h-12 flex items-center justify-between z-30 shrink-0">
            <div className="flex items-center gap-4">
              <h1 className="text-2xl font-bold italic tracking-tight text-black">{APP_CONFIG.APP_NAME}</h1>
            </div>
@@ -3580,11 +3630,11 @@ const App = () => {
             <div className="flex-1 bg-slate-50 overflow-y-auto p-4 md:p-8 min-h-0">
                 <div className="max-w-5xl mx-auto space-y-8 animate-in slide-in-from-bottom-4 fade-in duration-500">
                     {/* Header Hero */}
-                    <div className="bg-brand-green border-2 border-black p-8 md:p-12 brutalist-shadow text-white relative overflow-hidden group">
+                    <div className="bg-brand-blue border-2 border-black p-8 md:p-12 brutalist-shadow text-white relative overflow-hidden group">
                          <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-black/10 skew-x-[-20deg] translate-x-1/2 group-hover:translate-x-1/3 transition-transform duration-700"></div>
                          <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
                             <div className="space-y-4">
-                                <div className="inline-flex items-center gap-2 bg-white text-brand-green border-2 border-black px-3 py-1 text-xs font-black uppercase tracking-wider">
+                                <div className="inline-flex items-center gap-2 bg-white text-brand-blue border-2 border-black px-3 py-1 text-xs font-black uppercase tracking-wider">
                                     <FolderOpen className="w-4 h-4 fill-current" />
                                     Useful Tools
                                 </div>
@@ -4447,6 +4497,16 @@ const App = () => {
                    data-asset-card="true" 
                    onClick={(e) => toggleAssetSelection(asset.id, e)}
                    className={`group bg-white border-2 border-black brutalist-shadow transition-all hover:-translate-y-1 cursor-pointer relative ${selectedAssetIds.has(asset.id) ? 'border-brand-blue border-4 ring-0' : ''}`}>
+                 <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deleteAssetFromDB(asset.id);
+                      setGeneratedAssets(prev => prev.filter(a => a.id !== asset.id));
+                    }}
+                    className="absolute top-2 right-2 z-50 bg-white border border-black p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-100"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
                 
                  <div className="aspect-square bg-slate-100 border-b-2 border-black relative overflow-hidden">
                   {(asset.status === 'loading' || asset.status === 'queued' || asset.status === 'processing') ? (
