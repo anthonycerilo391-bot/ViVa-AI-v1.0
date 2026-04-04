@@ -4473,9 +4473,9 @@ const App = () => {
                         <span className="font-normal text-sm text-gray-500 tracking-wide">生成失败</span>
                      </div>
                   ) : asset.type === 'image' ? (
-                    <img src={asset.url} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onClick={(e) => { e.stopPropagation(); setPreviewAsset(asset); }} />
+                    <img src={asset.url} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onClick={(e) => { if (selectedAssetIds.size === 0) { e.stopPropagation(); setPreviewAsset(asset); } }} />
                   ) : asset.type === 'video' ? (
-                    <div className="w-full h-full flex flex-col items-center justify-center relative" onClick={(e) => { e.stopPropagation(); setPreviewAsset(asset); }}>
+                    <div className="w-full h-full flex flex-col items-center justify-center relative" onClick={(e) => { if (selectedAssetIds.size === 0) { e.stopPropagation(); setPreviewAsset(asset); } }}>
                       {asset.status === 'completed' ? <video src={asset.url} className="w-full h-full object-cover" muted loop autoPlay /> : <Loader2 className="w-12 h-12 animate-spin text-brand-red" />}
                     </div>
                   ) : (
