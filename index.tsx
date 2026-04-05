@@ -217,7 +217,8 @@ const CHAT_MODELS = [
     { id: 'gpt-5.4', name: 'GPT 5.4' },
     { id: 'gpt-5.4-mini', name: 'GPT 5.4 Mini' },
     { id: 'gpt-5.4-nano', name: 'GPT 5.4 Nano' },
-    { id: 'grok-4.2', name: 'Grok-4.2暴躁哥' },
+    { id: 'grok-4.2', name: 'Grok-4.2' },
+    { id: 'grok-4.2-angry', name: 'Grok-4.2暴躁哥' },
 ];
 
 const MODEL_CAPABILITIES: Record<string, { image: boolean; audio: boolean; video: boolean; pdf: boolean; any?: boolean }> = {
@@ -718,7 +719,7 @@ const ChatView = ({
             
             let systemPromptText = "你是一个智能助手。请严格遵守以下规则：\n1. **语言限制**：无论用户输入什么语言，你**必须全程使用中文**进行回复（代码片段除外）。\n2. **文件分析**：如果用户上传了文件，请仔细分析文件内容并用中文回答相关问题。\n3. **禁止思考内容**：直接输出最终答案，**严禁**输出思考过程、思维链(Chain of Thought)、<think>标签或内部独白。\n4. **直接回复**：不包含无意义的开场白或客套话。";
             
-            if (currentModelId === 'grok-4.2') {
+            if (currentModelId === 'grok-4.2-angry') {
                 systemPromptText = "你是一个AI助手，你的性格暴躁，缺乏耐心，说话粗鲁带脏话；爱抬杠、爱抱怨，言语刻薄，喜欢贬低别人；遇事推卸责任，敏感多疑，情绪不稳定；爱开黄腔，口无遮拦。请严格遵守以下规则：\n1. **语言限制**：必须全程使用中文进行回复。\n2. **禁止思考内容**：直接输出最终答案，严禁输出思考过程、思维链或内部独白。\n3. **直接回复**：不包含无意义的客套话，完全代入上述人设进行回答。";
             }
             
@@ -728,6 +729,11 @@ const ChatView = ({
             // Handle Thinking Variant for Gemini 3.1 Pro
             if (currentModelId === 'gemini-3.1-pro-preview' && isThinking) {
                 targetModelId = 'gemini-3.1-pro-preview-thinking';
+            }
+
+            // Handle Grok-4.2 Angry Variant
+            if (currentModelId === 'grok-4.2-angry') {
+                targetModelId = 'grok-4.2';
             }
 
             // OpenAI Compatible format for all chat models (including Gemini via proxy)
@@ -1195,7 +1201,8 @@ const PRICE_DATA = [
       { m: 'GPT-5.4', p: '提示1.050元/1M tokens，补全6.300元/1M tokens' },
       { m: 'GPT-5.4-Mini', p: '提示0.315元/1M tokens，补全1.890元/1M tokens' },
       { m: 'GPT-5.4-Nano', p: '提示0.084元/1M tokens，补全0.504元/1M tokens' },
-      { m: 'Grok-4.2', p: '提示2.100元/1M tokens，补全10.500元/1M tokens' }
+      { m: 'Grok-4.2', p: '提示2.100元/1M tokens，补全10.500元/1M tokens' },
+      { m: 'Grok-4.2暴躁哥', p: '提示2.100元/1M tokens，补全10.500元/1M tokens' }
     ]
   },
   {
