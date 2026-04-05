@@ -10,14 +10,14 @@
         theme: {
           extend: {
             colors: {
-              'brand-yellow': '#FFFFFF',
-              'brand-red': '#000000',
+              'brand-yellow': '#F7CE00',
+              'brand-red': '#E5312F',
               'brand-black': '#000000',
-              'brand-purple': '#F8FAFC',
-              'brand-green': '#FFFFFF',
-              'brand-cream': '#F1F5F9',
-              'brand-blue': '#FFFFFF',
-              'brand-pink': '#E2E8F0'
+              'brand-purple': '#A855F7',
+              'brand-green': '#4ADE80',
+              'brand-cream': '#FEFCE8',
+              'brand-blue': '#3B82F6',
+              'brand-pink': '#F472B6'
             },
             animation: {
               'spin-slow': 'spin 4s linear infinite',
@@ -47,24 +47,25 @@
       }
     </script>
     <style>
+      @import url('https://fonts.googleapis.com/css2?family=Bangers&display=swap');
+
       :root {
-        --brand-yellow: #FFFFFF;
-        --brand-red: #000000;
+        --brand-yellow: #F7CE00;
+        --brand-red: #E5312F;
         --brand-black: #000000;
-        --brand-purple: #F8FAFC;
-        --brand-green: #FFFFFF;
-        --brand-cream: #F1F5F9;
-        --brand-blue: #FFFFFF;
-        --brand-pink: #E2E8F0;
-        --brand-bg: #FFFFFF;
+        --brand-purple: #A855F7;
+        --brand-green: #4ADE80;
+        --brand-cream: #FEFCE8;
+        --brand-blue: #3B82F6;
+        --brand-pink: #F472B6;
+        --brand-bg: #F8FAFC;
         --brand-bg-dark: #F1F5F9;
       }
 
-      @import url('https://fonts.googleapis.com/css2?family=Bangers&display=swap');
-
       body {
         background-color: var(--brand-bg);
-        background-image: none;
+        background-image: radial-gradient(#CBD5E1 1px, transparent 1px);
+        background-size: 24px 24px;
         font-family: 'Microsoft YaHei', '微软雅黑', 'Arial', sans-serif;
       }
 
