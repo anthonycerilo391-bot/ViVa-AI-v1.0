@@ -26,7 +26,7 @@ export const APP_CONFIG = {
   CASE_URL: "https://gcnsqc1rm2kk.feishu.cn/wiki/IsoawttXwiLnTakKBVGcCacfnHh?from=from_parent_docx",
 
   // 8. 保存到桌面的链接（DESKTOP_SAVE_URL）：默认值="p.xxxx.cn"，代理替换为部署到Vercel的自定义域名
-  DESKTOP_SAVE_URL: "p.vivaapi.cn",
+  DESKTOP_SAVE_URL: "p.jiguangmanying.xyz",
 
   // 9. 顶部公告内容（ANNOUNCEMENT）：代理可自定义修改
   ANNOUNCEMENT: "公告：1、本应用不储存用户资产，请及时下载；2、生成失败请重新生成，扣费自动返还；3、OpenClaw一键安装包见主站API文档。",
