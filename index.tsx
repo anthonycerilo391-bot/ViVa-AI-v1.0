@@ -3775,9 +3775,9 @@ const App = () => {
           <div className="flex md:flex-col items-center gap-2 md:gap-4 w-full overflow-x-auto md:overflow-visible no-scrollbar px-4 md:px-0 py-4 md:py-6 md:flex-1 md:border-r-2 border-black">
               {[
                   { id: 'chat', icon: MessageSquare, label: '对话', action: () => { setMainCategory('chat'); resetInputState(); }, active: mainCategory === 'chat' },
-                  { id: 'image', icon: ImageIcon, label: '绘画', action: () => { setMainCategory('image'); resetInputState({ keepImages: true }); }, active: mainCategory === 'image' },
-                  { id: 'video', icon: Video, label: '视频', action: () => { setMainCategory('video'); resetInputState({ keepImages: true }); }, active: mainCategory === 'video' },
-                  { id: 'audio', icon: Mic, label: '语音', action: () => { setMainCategory('audio'); resetInputState(); }, active: mainCategory === 'audio' },
+                  { id: 'image', icon: ImageIcon, label: '绘画', action: () => { setMainCategory('image'); resetInputState({ keepImages: true }); if (window.innerWidth < 768) setIsSidebarOpen(true); }, active: mainCategory === 'image' },
+                  { id: 'video', icon: Video, label: '视频', action: () => { setMainCategory('video'); resetInputState({ keepImages: true }); if (window.innerWidth < 768) setIsSidebarOpen(true); }, active: mainCategory === 'video' },
+                  { id: 'audio', icon: Mic, label: '语音', action: () => { setMainCategory('audio'); resetInputState(); if (window.innerWidth < 768) setIsSidebarOpen(true); }, active: mainCategory === 'audio' },
                   { id: 'resources', icon: FolderOpen, label: '资源', action: () => { setMainCategory('resources'); resetInputState(); }, active: mainCategory === 'resources' },
                   { id: 'proxy', icon: Shield, label: '代理', action: () => { setMainCategory('proxy'); resetInputState(); }, active: mainCategory === 'proxy' },
                   { id: 'case', icon: BookOpen, label: '案例', action: () => { window.open(APP_CONFIG.CASE_URL, '_blank'); }, active: false },
@@ -3819,9 +3819,20 @@ const App = () => {
 
       <div className="flex-1 flex flex-col min-w-0 h-full relative">
         {/* Shared Header */}
-        <header className="bg-brand-yellow pl-2 pr-5 border-b-2 border-black h-12 flex items-center justify-between z-30 shrink-0">
-           <div className="flex items-center gap-4">
-             <h1 className="text-2xl font-bold italic tracking-tight text-black">{APP_CONFIG.APP_NAME}</h1>
+        <header className="bg-brand-yellow pl-0 pr-5 border-b-2 border-black h-12 flex items-center justify-between z-30 shrink-0">
+           <div className="flex items-center h-full">
+             {!isFullWidthMode && (
+                <button 
+                    onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                    className="md:hidden w-12 h-12 flex items-center justify-center border-r-2 border-black transition-all bg-white hover:bg-slate-100"
+                    title={isSidebarOpen ? "查看结果" : "调整配置"}
+                >
+                    {isSidebarOpen ? <Maximize2 className="w-5 h-5" /> : <Edit3 className="w-5 h-5" />}
+                </button>
+             )}
+             <div className="flex items-center gap-4 pl-4">
+               <h1 className="text-2xl font-bold italic tracking-tight text-black">{APP_CONFIG.APP_NAME}</h1>
+             </div>
            </div>
            <div className="flex items-center gap-1 md:gap-2">
                 <button onClick={() => setActiveModal('settings')} title="系统设置" className="w-10 h-10 md:w-11 md:h-11 flex items-center justify-center text-black hover:text-brand-red transition-colors">
