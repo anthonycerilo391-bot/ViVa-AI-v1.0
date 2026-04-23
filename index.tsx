@@ -4518,28 +4518,31 @@ const App = () => {
                   
                   {/* Updated Toolbar matching the provided image style */}
                   {!isAudioMode && (
-                  <div className="flex flex-wrap gap-2 mb-2">
-                    <button onClick={optimizePrompt} disabled={isOptimizing} className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-brand-yellow text-black border border-black font-normal text-xs brutalist-shadow-sm hover:translate-y-0.5 hover:shadow-none transition-all uppercase whitespace-nowrap">
-                      {isOptimizing ? <Loader2 className="w-3.5 h-3.5 animate-spin"/> : <><Wand2 className="w-3.5 h-3.5"/> AI</>}
+                  <div className="flex flex-row gap-1.5 mb-2 overflow-x-auto no-scrollbar">
+                    <button onClick={optimizePrompt} disabled={isOptimizing} className="flex-1 flex flex-col sm:flex-row items-center justify-center gap-1 px-1 py-1.5 bg-brand-yellow text-black border border-black font-normal text-[10px] brutalist-shadow-sm hover:translate-y-0.5 hover:shadow-none transition-all uppercase whitespace-nowrap min-w-0" title="AI优化">
+                      {isOptimizing ? <Loader2 className="w-3.5 h-3.5 animate-spin"/> : <Wand2 className="w-3.5 h-3.5"/>}
+                      <span className="hidden sm:inline">AI</span>
                     </button>
-                    <button onClick={() => { setTempSelectedStyles([]); setActiveModal('styles'); }} className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-brand-blue text-white border border-black font-normal text-xs brutalist-shadow-sm hover:translate-y-0.5 hover:shadow-none transition-all uppercase whitespace-nowrap">
-                        <Palette className="w-3.5 h-3.5"/> 风格镜头
+                    <button onClick={() => { setTempSelectedStyles([]); setActiveModal('styles'); }} className="flex-1 flex flex-col sm:flex-row items-center justify-center gap-1 px-1 py-1.5 bg-brand-blue text-white border border-black font-normal text-[10px] brutalist-shadow-sm hover:translate-y-0.5 hover:shadow-none transition-all uppercase whitespace-nowrap min-w-0" title="风格镜头">
+                        <Palette className="w-3.5 h-3.5"/>
+                        <span className="hidden sm:inline">风格镜头</span>
                     </button>
-                    <button onClick={() => setActiveModal('library')} className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-brand-purple text-white border border-black font-normal text-xs brutalist-shadow-sm hover:translate-y-0.5 hover:shadow-none transition-all uppercase whitespace-nowrap">
-                      <Bookmark className="w-3.5 h-3.5"/> 词库
+                    <button onClick={() => setActiveModal('library')} className="flex-1 flex flex-col sm:flex-row items-center justify-center gap-1 px-1 py-1.5 bg-brand-purple text-white border border-black font-normal text-[10px] brutalist-shadow-sm hover:translate-y-0.5 hover:shadow-none transition-all uppercase whitespace-nowrap min-w-0" title="词库">
+                      <Bookmark className="w-3.5 h-3.5"/>
+                      <span className="hidden sm:inline">词库</span>
                     </button>
-                    
-                    <div className="flex gap-2 ml-auto">
-                      <button onClick={handleOpenSaveModal} disabled={!prompt.trim()} className="w-9 h-9 flex items-center justify-center bg-brand-pink text-white border border-black font-normal text-xs brutalist-shadow-sm hover:translate-y-0.5 hover:shadow-none transition-all disabled:opacity-50 disabled:grayscale disabled:hover:translate-y-0 disabled:hover:shadow-sm" title="保存">
-                        <Save className="w-4 h-4"/>
-                      </button>
-                      <button onClick={() => setActiveModal('edit-prompt')} className="w-9 h-9 flex items-center justify-center bg-brand-green text-black border border-black font-normal text-xs brutalist-shadow-sm hover:translate-y-0.5 hover:shadow-none transition-all" title="展开">
-                        <Maximize2 className="w-4 h-4"/>
-                      </button>
-                      <button onClick={() => { setPrompt(''); setDialogueLines([]); }} className="w-9 h-9 flex items-center justify-center bg-white text-black border border-black font-normal text-xs brutalist-shadow-sm hover:bg-brand-red hover:text-white hover:translate-y-0.5 hover:shadow-none transition-all" title="清空">
-                        <Trash2 className="w-4 h-4"/>
-                      </button>
-                    </div>
+                    <button onClick={handleOpenSaveModal} disabled={!prompt.trim()} className="flex-1 flex flex-col sm:flex-row items-center justify-center gap-1 px-1 py-1.5 bg-brand-pink text-white border border-black font-normal text-[10px] brutalist-shadow-sm hover:translate-y-0.5 hover:shadow-none transition-all disabled:opacity-50 disabled:grayscale disabled:hover:translate-y-0 min-w-0" title="保存">
+                      <Save className="w-3.5 h-3.5"/>
+                      <span className="hidden sm:inline">保存</span>
+                    </button>
+                    <button onClick={() => setActiveModal('edit-prompt')} className="flex-1 flex flex-col sm:flex-row items-center justify-center gap-1 px-1 py-1.5 bg-brand-green text-black border border-black font-normal text-[10px] brutalist-shadow-sm hover:translate-y-0.5 hover:shadow-none transition-all min-w-0" title="展开">
+                      <Maximize2 className="w-3.5 h-3.5"/>
+                      <span className="hidden sm:inline">展开</span>
+                    </button>
+                    <button onClick={() => { setPrompt(''); setDialogueLines([]); }} className="flex-1 flex flex-col sm:flex-row items-center justify-center gap-1 px-1 py-1.5 bg-white text-black border border-black font-normal text-[10px] brutalist-shadow-sm hover:bg-brand-red hover:text-white hover:translate-y-0.5 hover:shadow-none transition-all min-w-0" title="清空">
+                      <Trash2 className="w-3.5 h-3.5"/>
+                      <span className="hidden sm:inline">清空</span>
+                    </button>
                   </div>
                   )}
 
@@ -4869,9 +4872,11 @@ const App = () => {
             ))}
 
             {generatedAssets.length === 0 && (
-              <div className="col-span-full h-[400px] border-2 border-dashed border-slate-300 flex flex-col items-center justify-center">
-                <Bot className="w-32 h-32 opacity-10 mb-4" />
-                <span className="font-normal text-4xl uppercase tracking-tighter opacity-10 italic">READY FOR ADVENTURE</span>
+              <div className="col-span-full h-[300px] md:h-[400px] border-2 border-dashed border-slate-300 flex flex-col items-center justify-center p-4">
+                <Bot className="w-24 h-24 md:w-32 md:h-32 opacity-10 mb-4" />
+                <span className="font-normal text-2xl md:text-4xl uppercase tracking-tighter opacity-10 italic text-center px-4 leading-none">
+                  READY FOR ADVENTURE
+                </span>
               </div>
             )}
           </div>
