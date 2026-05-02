@@ -23,7 +23,7 @@ import {
   User, VolumeX, MessageSquare,
   ChevronLeft, ChevronRight, MessageSquarePlus, Zap, Eraser, ArrowUp,
   ChevronDown, Brush, Brain, Monitor, FolderOpen, Frown,
-  Link, Globe, Bell
+  Link, Globe, Bell, Eye, EyeOff
 } from 'lucide-react';
 
 // --- Types & Declarations ---
@@ -87,6 +87,7 @@ interface ModelDefinition {
   maxReferenceImages?: number;
   supportedAspectRatios: string[];
   supportedResolutions: string[];
+  supportedQualities?: string[];
 }
 
 interface SavedPrompt {
@@ -147,19 +148,19 @@ const GPT15_RATIOS = ['1:1', '2:3', '3:2'];
 const GPT2_RATIOS = ['1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3', '5:4', '4:5', '2:1', '1:2', '21:9', '9:21'];
 
 const GPT2_SIZES: Record<string, Record<string, string>> = {
-  "1:1": { "1K": "1024x1024", "2K": "2048x2048", "4K": "2880x2880" },
-  "16:9": { "1K": "1280x720", "2K": "2048x1152", "4K": "3840x2160" },
-  "9:16": { "1K": "720x1280", "2K": "1152x2048", "4K": "2160x3840" },
-  "4:3": { "1K": "1152x864", "2K": "2048x1536", "4K": "3200x2400" },
-  "3:4": { "1K": "864x1152", "2K": "1536x2048", "4K": "2400x3200" },
-  "3:2": { "1K": "1536x1024", "2K": "2304x1536", "4K": "3456x2304" },
-  "2:3": { "1K": "1024x1536", "2K": "1536x2304", "4K": "2304x3456" },
-  "5:4": { "1K": "1280x1024", "2K": "2080x1664", "4K": "3200x2560" },
-  "4:5": { "1K": "1024x1280", "2K": "1664x2080", "4K": "2560x3200" },
-  "2:1": { "1K": "1536x768", "2K": "2560x1280", "4K": "3840x1920" },
-  "1:2": { "1K": "768x1536", "2K": "1280x2560", "4K": "1920x3840" },
-  "21:9": { "1K": "1680x720", "2K": "2688x1152", "4K": "3840x1648" },
-  "9:21": { "1K": "720x1680", "2K": "1152x2688", "4K": "1648x3840" }
+  "1:1": { "1K": "1024x1024", "2K": "2048x2048" },
+  "16:9": { "1K": "1536x864", "2K": "2048x1152", "4K": "3840x2160" },
+  "9:16": { "1K": "864x1536", "2K": "1152x2048", "4K": "2160x3840" },
+  "4:3": { "1K": "1024x768", "2K": "2048x1536" },
+  "3:4": { "1K": "768x1024", "2K": "1536x2048" },
+  "3:2": { "1K": "1536x1024", "2K": "2048x1360" },
+  "2:3": { "1K": "1024x1536", "2K": "1360x2048" },
+  "5:4": { "1K": "1280x1024", "2K": "2560x2048" },
+  "4:5": { "1K": "1024x1280", "2K": "2048x2560" },
+  "2:1": { "1K": "2048x1024", "2K": "2688x1344", "4K": "3840x1920" },
+  "1:2": { "1K": "1024x2048", "2K": "1344x2688", "4K": "1920x3840" },
+  "21:9": { "1K": "2016x864", "2K": "2688x1152", "4K": "3840x1648" },
+  "9:21": { "1K": "864x2016", "2K": "1152x2688", "4K": "1648x3840" }
 };
 
 const GROK_RATIOS = ['1:1', '2:3', '3:2', '9:16', '16:9'];
@@ -215,12 +216,13 @@ const MODELS: ModelDefinition[] = [
   },
   {
     id: 'gpt-image-2',
-    name: 'GPT IMAGE 2',
+    name: 'GPT IMAGE 2(推荐使用)',
     cost: 'GPT-2-NEW',
     features: ['detail', 'high-quality'],
     maxImages: 4,
     supportedAspectRatios: GPT2_RATIOS,
-    supportedResolutions: ['AUTO', '1K', '2K', '4K']
+    supportedResolutions: ['1K', '2K', '4K'],
+    supportedQualities: ['auto', 'low', 'medium', 'high']
   },
   {
     id: 'gpt-image-2-all',
@@ -228,8 +230,8 @@ const MODELS: ModelDefinition[] = [
     cost: 'GPT-2',
     features: ['heavy', 'detail'],
     maxImages: 4,
-    supportedAspectRatios: GPT15_RATIOS,
-    supportedResolutions: ['AUTO']
+    supportedAspectRatios: GPT2_RATIOS,
+    supportedResolutions: ['1K', '2K', '4K']
   },
   {
     id: 'grok-4-image',
@@ -302,7 +304,7 @@ const VIDEO_MODELS = [
   { id: 'veo3.1-pro-4k', name: 'veo3.1-pro-4k', desc: '4K/首尾帧', supportedAspectRatios: ['16:9', '9:16'], options: [{s: '8', q: '4K'}] },
   {
     id: 'seedance-2.0',
-    name: 'SEEDANCE 2.0待官方开放API',
+    name: 'SEEDANCE 2.0暂不可用',
     desc: '高清/多比例',
     supportedAspectRatios: ['9:16', '16:9', '1:1', '3:4', '4:3', '21:9'],
     options: [
@@ -321,6 +323,18 @@ const VIDEO_MODELS = [
       {s: '15', q: '标清（模型下线）', modelIdOverride: 'grok-video-3-15s', disabled: true},
       {s: '15', q: '高清（模型下线）', modelIdOverride: 'grok-video-3-15s', disabled: true}
     ] 
+  },
+  {
+    id: 'grok-videos',
+    name: 'GROK VIDEOS',
+    desc: '高清视频',
+    supportedAspectRatios: ['9:16', '16:9', '1:1', '4:3', '3:4', '21:9'],
+    options: [
+      {s: '5', q: '标清'},
+      {s: '10', q: '标清'},
+      {s: '5', q: '高清'},
+      {s: '10', q: '高清'}
+    ]
   },
   { 
     id: 'kling-motion-control', 
@@ -514,6 +528,14 @@ const findImageUrlInObject = (obj: any): string | null => {
     if (trimmed.startsWith('data:image')) return trimmed;
     const urlMatch = trimmed.match(/(https?:\/\/[^\s"'<>]+)/i);
     if (urlMatch) return urlMatch[1];
+    
+    // Check if it's a raw base64 image string (rudimentary heuristic)
+    if (trimmed.length > 100 && /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(trimmed.slice(0, 500))) {
+         if (trimmed.startsWith('iVBORw0KGgo') || trimmed.startsWith('/9j/') || trimmed.startsWith('UklGR')) {
+              return `data:image/png;base64,${trimmed}`;
+         }
+    }
+    
     return null;
   }
   if (Array.isArray(obj)) {
@@ -522,7 +544,16 @@ const findImageUrlInObject = (obj: any): string | null => {
       if (found) return found;
     }
   } else if (typeof obj === 'object') {
-    const priorityKeys = ['url', 'b64_json', 'image', 'img', 'link', 'content', 'data', 'url'];
+    if (typeof obj['b64_json'] === 'string') {
+        const b64 = obj['b64_json'].trim();
+        return b64.startsWith('data:') ? b64 : `data:image/png;base64,${b64}`;
+    }
+    if (typeof obj['base64'] === 'string') {
+        const b64 = obj['base64'].trim();
+        if (b64.length > 50) return b64.startsWith('data:') ? b64 : `data:image/png;base64,${b64}`;
+    }
+
+    const priorityKeys = ['url', 'b64_json', 'image', 'img', 'link', 'content', 'data'];
     for (const key of priorityKeys) {
       if (obj[key]) {
         const found = findImageUrlInObject(obj[key]);
@@ -537,6 +568,19 @@ const findImageUrlInObject = (obj: any): string | null => {
     }
   }
   return null;
+};
+
+const LiveTimer = ({ startTime, status }: { startTime: number, status?: string }) => {
+    const [seconds, setSeconds] = useState(Math.round((Date.now() - startTime) / 1000));
+    
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setSeconds(Math.round((Date.now() - startTime) / 1000));
+        }, 1000);
+        return () => clearInterval(interval);
+    }, [startTime]);
+    
+    return <span className="font-normal text-xs uppercase tracking-tighter italic">{Math.max(0, seconds)}s</span>;
 };
 
 // --- IndexedDB ---
@@ -1260,7 +1304,7 @@ const PRICE_DATA = [
       { m: 'Gemini-3-Pro-Image', p: '1K/2K 0.231元/张，4K 0.414元/张' },
       { m: 'Kling Image O1', p: '0.238元/张' },
       { m: 'GPT Image 1.5', p: '0.055元/张' },
-      { m: 'GPT IMAGE 2', p: '提示3.500元/1M tokens    补全21.000元/1M tokens' },
+      { m: 'GPT IMAGE 2(推荐使用)', p: '提示3.500元/1M tokens    补全21.000元/1M tokens' },
       { m: 'GPT Image 2 ALL', p: '0.084元/张' },
       { m: 'Grok 4 Image', p: '0.056元/张' },
       { m: 'Grok Imagine Image', p: '0.146元/张' },
@@ -1287,6 +1331,7 @@ const PRICE_DATA = [
       { m: 'veo3.1-components-4k', p: '0.700元/条' },
       { m: 'veo3.1-pro-4k', p: '2.450元/条' },
       { m: 'Grok Video 3', p: '0.280元/6秒，0.280元/10秒' },
+      { m: 'GROK VIDEOS', p: '0.140元/次' },
       { m: 'Kling Control Std (动作转移)', p: '0.595元/秒' },
       { m: 'Kling Control Pro (动作转移)', p: '0.952元/秒' },
       { m: 'KLING Avatar Std (数字人)', p: '1.190元/秒' },
@@ -1542,6 +1587,8 @@ const App = () => {
   const [previewRefImage, setPreviewRefImage] = useState<ReferenceImage | null>(null);
   const [config, setConfig] = useState<AppConfig>({ baseUrl: FIXED_BASE_URL, apiKey: '' });
   const [tempConfig, setTempConfig] = useState<AppConfig>(config);
+  const [showKey1, setShowKey1] = useState(false);
+  const [showKey2, setShowKey2] = useState(false);
   const [prompt, setPrompt] = useState('');
   const [libraryPrompts, setLibraryPrompts] = useState<SavedPrompt[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
@@ -1553,6 +1600,7 @@ const App = () => {
   const [referenceVideos, setReferenceVideos] = useState<ReferenceImage[]>([]);
   const [referenceAudios, setReferenceAudios] = useState<ReferenceAudio[]>([]);
   const [imageSize, setImageSize] = useState('AUTO');
+  const [imageQuality, setImageQuality] = useState('auto');
   const [aspectRatio, setAspectRatio] = useState('1:1');
   const [generationCount, setGenerationCount] = useState(1);
   const [isOptimizing, setIsOptimizing] = useState(false);
@@ -1757,7 +1805,18 @@ const App = () => {
       const model = MODELS.find(m => m.id === selectedModel);
       if (model) {
         if (!model.supportedAspectRatios.includes(aspectRatio)) setAspectRatio(model.supportedAspectRatios[0]);
-        if (!model.supportedResolutions.includes(imageSize)) setImageSize(model.supportedResolutions[0]);
+
+        let allowedResolutions = model.supportedResolutions;
+        if (model.id === 'gpt-image-2' || model.id === 'gpt-image-2-all') {
+             const sizesForRatio = GPT2_SIZES[aspectRatio] || {};
+             allowedResolutions = allowedResolutions.filter(res => sizesForRatio[res]);
+        }
+        
+        if (!allowedResolutions.includes(imageSize) && allowedResolutions.length > 0) {
+            setImageSize(allowedResolutions[0]);
+        }
+
+        if (model.supportedQualities && !model.supportedQualities.includes(imageQuality)) setImageQuality(model.supportedQualities[0]);
       }
     } else if (isVideoMode) {
       const model = VIDEO_MODELS.find(m => m.id === selectedVideoModel);
@@ -2030,9 +2089,11 @@ const App = () => {
             }
 
             const data = await res.json();
+            console.log("Polling result for task", taskId, data);
             
             // Check for API level error objects
             if (data.error) {
+                 console.error("Polling API Error Response for task", taskId, data);
                  updateAssetStatus(assetId, 'failed', data.error.message || 'API Error');
                  clearInterval(interval);
                  return;
@@ -2043,10 +2104,10 @@ const App = () => {
 
             // Check for error logs in response
             const logs = (data.logs || data.task_log || data.usage_log || '').toString();
-            const hasLogError = /error|fail|exception/i.test(logs) && !/no error|success/i.test(logs);
+            const hasLogError = /error|fail|exception/i.test(logs);
 
             const isSuccess = ['completed', 'succeeded', 'success', 'done'].includes(rawStatus);
-            const isFailed = ['failed', 'error', 'rejected', 'cancelled', 'timeout', 'exception'].includes(rawStatus) || hasLogError;
+            const isFailed = ['failed', 'error', 'rejected', 'cancelled', 'timeout', 'exception'].includes(rawStatus) || hasLogError || (data.status === 'failed') || (data.data?.status === 'failed');
 
             if (isSuccess && videoUrl) {
                 const finishTime = Date.now();
@@ -2054,6 +2115,7 @@ const App = () => {
                 updateAssetStatus(assetId, 'completed', `${diff}s`, videoUrl);
                 clearInterval(interval);
             } else if (isFailed) {
+                console.error("Polling Detected Failure for task", taskId, {data, hasLogError});
                 const reason = data.fail_reason || data.error_msg || data.error || data.task_status_msg || (hasLogError ? logs.slice(0, 100) : '失败');
                 updateAssetStatus(assetId, 'failed', reason);
                 clearInterval(interval);
@@ -2969,208 +3031,234 @@ const App = () => {
     scrollToGallery();
     try {
         const createOne = async (pId: string) => {
-            let response;
-            const isVeoModel = apiModelId.startsWith('veo3.1');
-            const isGrokModel = apiModelId.startsWith('grok');
-            const isJimengModel = apiModelId.startsWith('jimeng');
-            
-            if (apiModelId === 'kling-motion-control') {
-                if (tRefs.length === 0) throw new Error("请上传一张参考图片 (Image Required)");
-                if (tRefVideos.length === 0) throw new Error("请上传参考视频 (Video Required)");
-
-                const durationObj = modelDef!.options[tOptIdx];
-                const mode = durationObj.q === '高品质模式' ? 'pro' : 'std';
+            try {
+                let response;
+                const isVeoModel = apiModelId.startsWith('veo3.1');
+                const isGrokModel = apiModelId.startsWith('grok');
+                const isJimengModel = apiModelId.startsWith('jimeng');
                 
-                const payload: any = {
-                    prompt: tPrompt || undefined,
-                    keep_original_sound: tKlingKeepSound ? 'yes' : 'no',
-                    character_orientation: tKlingOrientation,
-                    mode: mode
-                };
+                if (apiModelId === 'kling-motion-control') {
+                    if (tRefs.length === 0) throw new Error("请上传一张参考图片 (Image Required)");
+                    if (tRefVideos.length === 0) throw new Error("请上传参考视频 (Video Required)");
 
-                if (tRefs[0].data.startsWith('http')) {
-                    payload.image_url = tRefs[0].data;
-                } else {
-                    payload.image = tRefs[0].data;
+                    const durationObj = modelDef!.options[tOptIdx];
+                    const mode = durationObj.q === '高品质模式' ? 'pro' : 'std';
+                    
+                    const payload: any = {
+                        prompt: tPrompt || undefined,
+                        keep_original_sound: tKlingKeepSound ? 'yes' : 'no',
+                        character_orientation: tKlingOrientation,
+                        mode: mode
+                    };
+
+                    if (tRefs[0].data.startsWith('http')) {
+                        payload.image_url = tRefs[0].data;
+                    } else {
+                        payload.image = tRefs[0].data;
+                    }
+
+                    if (tRefVideos[0].data.startsWith('http')) {
+                        payload.video_url = tRefVideos[0].data;
+                    } else {
+                        payload.video = tRefVideos[0].data;
+                    }
+
+                    response = await fetch(`${config.baseUrl}/kling/v1/videos/motion-control`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}`, 'Accept': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    
+                    const data = await response.json();
+                    if (!response.ok || (data.code && data.code !== 0)) throw new Error(data.message || data.error?.message || "Kling动作转移失败");
+                    
+                    const tid = data.data?.task_id;
+                    if (!tid) throw new Error("No Task ID returned from Kling API");
+                    
+                    const updatedAsset: any = { ...placeholders.find(x => x.id === pId), status: 'queued', taskId: tid };
+                    setGeneratedAssets(prev => prev.map(a => a.id === pId ? updatedAsset : a));
+                    saveAssetToDB(updatedAsset);
+                    
+                    startKlingVideoPolling(tid, pId, startTime, 'motion-control');
+                    return;
                 }
 
-                if (tRefVideos[0].data.startsWith('http')) {
-                    payload.video_url = tRefVideos[0].data;
-                } else {
-                    payload.video = tRefVideos[0].data;
+                if (apiModelId === 'kling-avatar-image2video') {
+                    if (tRefs.length === 0) throw new Error("请上传一张人像参考图");
+                    if (tRefAudios.length === 0) throw new Error("请上传驱动音频 (MP3/WAV/M4A/AAC, 2-60s)");
+                    
+                    const durationObj = modelDef!.options[tOptIdx];
+                    const mode = durationObj.q === '高品质模式' ? 'pro' : 'std';
+                    
+                    const payload: any = {
+                        sound_file: tRefAudios[0].data,
+                        prompt: tPrompt || "",
+                        mode: mode,
+                        callback_url: "",
+                        external_task_id: ""
+                    };
+
+                    if (tRefs[0].data.startsWith('http')) {
+                        payload.image_url = tRefs[0].data;
+                    } else {
+                        payload.image = tRefs[0].data;
+                    }
+
+                    response = await fetch(`${config.baseUrl}/kling/v1/videos/avatar/image2video`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}`, 'Accept': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    const data = await response.json();
+                    if (!response.ok || (data.code && data.code !== 0)) throw new Error(data.message || data.error?.message || "Kling数字人生成失败");
+                    
+                    const tid = data.data?.task_id;
+                    if (!tid) throw new Error("No Task ID returned from Kling API");
+
+                    const updatedAsset: any = { ...placeholders.find(x => x.id === pId), status: 'queued', taskId: tid };
+                    setGeneratedAssets(prev => prev.map(a => a.id === pId ? updatedAsset : a));
+                    saveAssetToDB(updatedAsset);
+                    
+                    startKlingVideoPolling(tid, pId, startTime, 'avatar/image2video');
+                    return;
                 }
 
-                response = await fetch(`${config.baseUrl}/kling/v1/videos/motion-control`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}`, 'Accept': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
+                if (isVeoModel || isGrokModel || isJimengModel || isKlingModel) {
+                    const payload: any = {
+                        model: apiModelId,
+                        prompt: tPrompt,
+                        images: tRefs.map((img: ReferenceImage) => img.data.startsWith('http') ? img.data : `data:${img.mimeType};base64,${img.data}`),
+                        aspect_ratio: tRatio
+                    };
+
+                    if (isVeoModel) {
+                        payload.enhance_prompt = true;
+                        payload.enable_upsample = true;
+                    }
+
+                    if (isGrokModel) {
+                        payload.size = '720P';
+                    }
+
+                    if (isJimengModel) {
+                        payload.duration = parseInt((modelDef!.options[tOptIdx] as any).s);
+                    }
+                    
+                    if (isKlingModel) {
+                        payload.duration = parseInt((modelDef!.options[tOptIdx] as any).s);
+                    }
+
+                    if ((isKlingModel || isGrokModel) && tSyncAudio) {
+                        payload.sync_audio = true;
+                    }
+
+                    response = await fetch(`${config.baseUrl}/v1/video/create`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}`, 'Accept': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                } else {
+                    const formData = new FormData();
+                    formData.append('model', apiModelId);
+                    formData.append('prompt', tPrompt);
+                    
+                    if (apiModelId === 'seedance-2.0') {
+                        formData.append('seconds', tSeedanceDuration.toString());
+                    } else {
+                        formData.append('seconds', (modelDef!.options[tOptIdx] as any).s);
+                    }
+                    
+                    formData.append('size', tRatio.replace(':', 'x'));
+                    formData.append('watermark', 'false');
+                    
+                    if (tRefs && tRefs.length > 0) {
+                        for (let i = 0; i < tRefs.length; i++) {
+                                const img = tRefs[i];
+                                let blob: Blob | null = null;
+                                if (img.data.startsWith('http')) {
+                                    blob = await urlToBlob(img.data);
+                                } else {
+                                    blob = base64ToBlob(img.data, img.mimeType);
+                                }
+                                if (blob) formData.append('input_reference', blob, `图片 ${i+1}.png`);
+                        }
+                    }
+
+                    if (apiModelId === 'seedance-2.0') {
+                        if (tRefVideos && tRefVideos.length > 0) {
+                            for (let i = 0; i < tRefVideos.length; i++) {
+                                    const vid = tRefVideos[i];
+                                    let blob: Blob | null = null;
+                                    if (vid.data.startsWith('http')) {
+                                        blob = await urlToBlob(vid.data);
+                                    } else {
+                                        blob = base64ToBlob(vid.data, vid.mimeType);
+                                    }
+                                    if (blob) formData.append('input_reference', blob, `视频 ${i+1}.mp4`);
+                            }
+                        }
+                        if (tRefAudios && tRefAudios.length > 0) {
+                            for (let i = 0; i < tRefAudios.length; i++) {
+                                    const aud = tRefAudios[i];
+                                    let blob: Blob | null = null;
+                                    if (aud.data.startsWith('http')) {
+                                        blob = await urlToBlob(aud.data);
+                                    } else {
+                                        blob = base64ToBlob(aud.data, aud.mimeType);
+                                    }
+                                    if (blob) formData.append('input_reference', blob, `音频 ${i+1}.mp3`);
+                            }
+                        }
+                    }
+
+                    response = await fetch(`${config.baseUrl}/v1/videos`, { method: 'POST', headers: { 'Authorization': `Bearer ${key}` }, body: formData });
+                }
                 
                 const data = await response.json();
-                if (!response.ok || (data.code && data.code !== 0)) throw new Error(data.message || data.error?.message || "Kling动作转移失败");
+                if (!response.ok || (data.code && data.code !== 0)) {
+                    let errorMsg = "视频生成接口错误";
+                    if (data.error && typeof data.error === 'string') {
+                        errorMsg = data.error;
+                    } else if (data.error && typeof data.error === 'object' && data.error.message) {
+                        errorMsg = data.error.message;
+                    } else if (data.message) {
+                        errorMsg = data.message;
+                    }
+                    throw new Error(errorMsg);
+                }
                 
-                const tid = data.data?.task_id;
-                if (!tid) throw new Error("No Task ID returned from Kling API");
-                
+                const tid = data.id || data.data?.id || data.data?.task_id || data.task_id || data.taskId;
+                if (!tid) {
+                    let errorMsg = "视频生成接口错误";
+                    if (data.error && typeof data.error === 'string') {
+                        errorMsg = data.error;
+                    } else if (data.error && typeof data.error === 'object' && data.error.message) {
+                        errorMsg = data.error.message;
+                    } else if (data.message) {
+                        errorMsg = data.message;
+                    }
+                    throw new Error(errorMsg);
+                }
+
                 const updatedAsset: any = { ...placeholders.find(x => x.id === pId), status: 'queued', taskId: tid };
                 setGeneratedAssets(prev => prev.map(a => a.id === pId ? updatedAsset : a));
                 saveAssetToDB(updatedAsset);
-                
-                startKlingVideoPolling(tid, pId, startTime, 'motion-control');
-                return;
-            }
-
-            if (apiModelId === 'kling-avatar-image2video') {
-                if (tRefs.length === 0) throw new Error("请上传一张人像参考图");
-                if (tRefAudios.length === 0) throw new Error("请上传驱动音频 (MP3/WAV/M4A/AAC, 2-60s)");
-                
-                const durationObj = modelDef!.options[tOptIdx];
-                const mode = durationObj.q === '高品质模式' ? 'pro' : 'std';
-                
-                const payload: any = {
-                    sound_file: tRefAudios[0].data,
-                    prompt: tPrompt || "",
-                    mode: mode,
-                    callback_url: "",
-                    external_task_id: ""
-                };
-
-                if (tRefs[0].data.startsWith('http')) {
-                    payload.image_url = tRefs[0].data;
-                } else {
-                    payload.image = tRefs[0].data;
-                }
-
-                response = await fetch(`${config.baseUrl}/kling/v1/videos/avatar/image2video`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}`, 'Accept': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-
-                const data = await response.json();
-                if (!response.ok || (data.code && data.code !== 0)) throw new Error(data.message || data.error?.message || "Kling数字人生成失败");
-                
-                const tid = data.data?.task_id;
-                if (!tid) throw new Error("No Task ID returned from Kling API");
-
-                const updatedAsset: any = { ...placeholders.find(x => x.id === pId), status: 'queued', taskId: tid };
-                setGeneratedAssets(prev => prev.map(a => a.id === pId ? updatedAsset : a));
-                saveAssetToDB(updatedAsset);
-                
-                startKlingVideoPolling(tid, pId, startTime, 'avatar/image2video');
-                return;
-            }
-
-            if (isVeoModel || isGrokModel || isJimengModel || isKlingModel) {
-                const payload: any = {
-                    model: apiModelId,
-                    prompt: tPrompt,
-                    images: tRefs.map((img: ReferenceImage) => img.data.startsWith('http') ? img.data : `data:${img.mimeType};base64,${img.data}`),
-                    aspect_ratio: tRatio
-                };
-
-                if (isVeoModel) {
-                  payload.enhance_prompt = true;
-                  payload.enable_upsample = true;
-                }
-
-                if (isGrokModel) {
-                   payload.size = '720P';
-                }
-
-                if (isJimengModel) {
-                    payload.duration = parseInt((modelDef!.options[tOptIdx] as any).s);
-                }
                 
                 if (isKlingModel) {
-                    // For other Kling models (like text2video or image2video)
-                    payload.duration = parseInt((modelDef!.options[tOptIdx] as any).s);
-                }
-
-                if ((isKlingModel || isGrokModel) && tSyncAudio) {
-                    payload.sync_audio = true;
-                }
-
-                response = await fetch(`${config.baseUrl}/v1/video/create`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}`, 'Accept': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-            } else {
-                const formData = new FormData();
-                formData.append('model', apiModelId);
-                formData.append('prompt', tPrompt);
-                
-                if (apiModelId === 'seedance-2.0') {
-                    formData.append('seconds', tSeedanceDuration.toString());
+                     // Determine correct polling type for generic Kling
+                     const endpoint = tRefs.length > 0 ? 'image2video' : 'text2video';
+                     startKlingVideoPolling(tid, pId, startTime, endpoint);
                 } else {
-                    formData.append('seconds', (modelDef!.options[tOptIdx] as any).s);
+                    startVideoPolling(tid, pId, startTime, apiModelId);
                 }
-                
-                formData.append('size', tRatio.replace(':', 'x'));
-                formData.append('watermark', 'false');
-                
-                if (tRefs && tRefs.length > 0) {
-                    for (let i = 0; i < tRefs.length; i++) {
-                         const img = tRefs[i];
-                         let blob: Blob | null = null;
-                         if (img.data.startsWith('http')) {
-                             blob = await urlToBlob(img.data);
-                         } else {
-                             blob = base64ToBlob(img.data, img.mimeType);
-                         }
-                         if (blob) formData.append('input_reference', blob, `图片 ${i+1}.png`);
-                    }
-                }
-
-                if (apiModelId === 'seedance-2.0') {
-                    if (tRefVideos && tRefVideos.length > 0) {
-                        for (let i = 0; i < tRefVideos.length; i++) {
-                             const vid = tRefVideos[i];
-                             let blob: Blob | null = null;
-                             if (vid.data.startsWith('http')) {
-                                 blob = await urlToBlob(vid.data);
-                             } else {
-                                 blob = base64ToBlob(vid.data, vid.mimeType);
-                             }
-                             if (blob) formData.append('input_reference', blob, `视频 ${i+1}.mp4`);
-                        }
-                    }
-                    if (tRefAudios && tRefAudios.length > 0) {
-                        for (let i = 0; i < tRefAudios.length; i++) {
-                             const aud = tRefAudios[i];
-                             let blob: Blob | null = null;
-                             if (aud.data.startsWith('http')) {
-                                 blob = await urlToBlob(aud.data);
-                             } else {
-                                 blob = base64ToBlob(aud.data, aud.mimeType);
-                             }
-                             if (blob) formData.append('input_reference', blob, `音频 ${i+1}.mp3`);
-                        }
-                    }
-                }
-
-                response = await fetch(`${config.baseUrl}/v1/videos`, { method: 'POST', headers: { 'Authorization': `Bearer ${key}` }, body: formData });
-            }
-            
-            const data = await response.json();
-            if (!response.ok || (data.code && data.code !== 0)) throw new Error(data.error?.message || data.message || "视频生成接口错误");
-            
-            const tid = data.id || data.data?.id || data.data?.task_id || data.task_id || data.taskId;
-            if (!tid) throw new Error("No Task ID returned");
-
-            const updatedAsset: any = { ...placeholders.find(x => x.id === pId), status: 'queued', taskId: tid };
-            setGeneratedAssets(prev => prev.map(a => a.id === pId ? updatedAsset : a));
-            saveAssetToDB(updatedAsset);
-            
-            if (isKlingModel) {
-                 // Determine correct polling type for generic Kling
-                 const endpoint = tRefs.length > 0 ? 'image2video' : 'text2video';
-                 startKlingVideoPolling(tid, pId, startTime, endpoint);
-            } else {
-                startVideoPolling(tid, pId, startTime, apiModelId);
+            } catch (err: any) {
+                console.error("createOne error:", err);
+                setGeneratedAssets(prev => prev.map(a => a.id === pId ? { ...a, status: 'failed', genTimeLabel: err.message || '生成失败' } : a));
+                setError(err.message || '生成失败');
             }
         };
+
         
         placeholders.forEach(p => createOne(p.id));
     } catch (err: any) { 
@@ -3252,6 +3340,7 @@ const App = () => {
     const tModelId = overrideConfig?.modelId ?? selectedModel;
     const tRatio = overrideConfig?.aspectRatio ?? aspectRatio;
     let tSize = overrideConfig?.imageSize ?? imageSize;
+    const tQuality = overrideConfig?.imageQuality ?? imageQuality;
     
     if (tModelId === 'grok-4-image') {
         if (tRatio === '1:1') tSize = '1080x1080';
@@ -3298,7 +3387,7 @@ const App = () => {
             modelId: tModelId, modelName: MODELS.find(m => m.id === tModelId)?.name || tModelId,
             durationText: tSize, genTimeLabel: '生成中...',
             timestamp: startTime, status: 'loading',
-            config: { modelId: tModelId, aspectRatio: tRatio, imageSize: tSize, prompt: tPrompt, referenceImages: tRefs ? [...tRefs] : [], type: 'image', isTransparent: tTransparent }
+            config: { modelId: tModelId, aspectRatio: tRatio, imageSize: tSize, imageQuality: tQuality, prompt: tPrompt, referenceImages: tRefs ? [...tRefs] : [], type: 'image', isTransparent: tTransparent }
         });
     }
     setGeneratedAssets(prev => [...placeholders, ...prev]);
@@ -3421,7 +3510,7 @@ const App = () => {
                 if (!res.ok || data.error) {
                     throw new Error(`Image Edit Error: ${data.error?.message || JSON.stringify(data.error) || JSON.stringify(data)}`);
                 }
-                url = data.data?.[0]?.url || findImageUrlInObject(data) || '';
+                url = findImageUrlInObject(data.data?.[0]?.url) || findImageUrlInObject(data) || '';
             } else if ((tModelId === 'gpt-image-2-all' || tModelId === 'gpt-image-2') && tRefs && tRefs.length > 0) {
                 // MiniMax Image Edit logic
                 const formData = new FormData();
@@ -3429,15 +3518,21 @@ const App = () => {
                 formData.append('prompt', tPrompt);
                 formData.append('n', '1');
                 
-                if (tModelId === 'gpt-image-2') {
-                    const qualityMapping: Record<string, string> = { '1K': 'low', '2K': 'medium', '4K': 'high' };
-                    const targetQuality = qualityMapping[tSize] || 'auto';
-                    const targetSize = tSize === 'AUTO' ? 'auto' : (GPT2_SIZES[tRatio]?.[tSize] || '1024x1024');
-                    formData.append('quality', targetQuality);
+                if (tModelId === 'gpt-image-2' || tModelId === 'gpt-image-2-all') {
+                    const targetSize = tSize === 'AUTO' ? (GPT2_SIZES[tRatio]?.['1K'] || '1024x1024') : (GPT2_SIZES[tRatio]?.[tSize] || GPT2_SIZES[tRatio]?.['2K'] || GPT2_SIZES[tRatio]?.['1K'] || '1024x1024');
                     formData.append('size', targetSize);
+                    if (tModelId === 'gpt-image-2') {
+                        const targetQuality = tQuality || 'auto';
+                        formData.append('quality', targetQuality);
+                    }
                 } else {
                     formData.append('size', tSize === 'AUTO' ? (tRatio === '3:2' ? '1536x1024' : tRatio === '2:3' ? '1024x1536' : '1024x1024') : tSize);
                 }
+                
+                // Add moderation parameter if supported
+                formData.append('safety_level', 'low');
+                formData.append('safety_setting', 'low');
+                formData.append('moderation', 'low');
 
                 // Assuming only the first image is used for standard edit if multiple are not supported as files
                 const img = tRefs[0];
@@ -3467,19 +3562,21 @@ const App = () => {
                 if (b64) {
                     url = b64.startsWith('data:') ? b64 : `data:image/png;base64,${b64}`;
                 } else {
-                    url = data.data?.[0]?.url || findImageUrlInObject(data) || '';
+                    url = findImageUrlInObject(data.data?.[0]?.url) || findImageUrlInObject(data) || '';
                 }
             } else if (tModelId === 'gpt-image-2') {
-                const qualityMapping: Record<string, string> = { '1K': 'low', '2K': 'medium', '4K': 'high' };
-                const targetQuality = qualityMapping[tSize] || 'auto';
-                const targetSize = tSize === 'AUTO' ? (GPT2_SIZES[tRatio]?.['1K'] || 'auto') : (GPT2_SIZES[tRatio]?.[tSize] || '1024x1024');
+                const targetQuality = tQuality || 'auto';
+                const targetSize = tSize === 'AUTO' ? (GPT2_SIZES[tRatio]?.['1K'] || '1024x1024') : (GPT2_SIZES[tRatio]?.[tSize] || GPT2_SIZES[tRatio]?.['2K'] || GPT2_SIZES[tRatio]?.['1K'] || '1024x1024');
 
                 const bodyPayload: any = {
                     model: tModelId,
                     prompt: tPrompt,
                     n: 1,
                     quality: targetQuality,
-                    size: targetSize
+                    size: targetSize,
+                    safety_level: 'low',
+                    safety_setting: 'low',
+                    moderation: 'low'
                 };
                 
                 // removed tRefs logic here because it's handled by the /edits block above if tRefs exists
@@ -3497,17 +3594,20 @@ const App = () => {
                 if (b64) {
                     url = b64.startsWith('data:') ? b64 : `data:image/png;base64,${b64}`;
                 } else {
-                    url = data.data?.[0]?.url || findImageUrlInObject(data) || '';
+                    url = findImageUrlInObject(data.data?.[0]?.url) || findImageUrlInObject(data) || '';
                 }
             } else if (tModelId === 'grok-imagine-image' || tModelId === 'doubao-seedream-5-0-260128' || tModelId === 'gpt-image-2-all') {
                 const bodyPayload: any = {
                     model: tModelId,
                     prompt: tPrompt,
                     n: 1,
-                    size: (tModelId === 'gpt-image-2-all' && tSize === 'AUTO') 
-                          ? (tRatio === '3:2' ? '1536x1024' : tRatio === '2:3' ? '1024x1536' : '1024x1024') 
+                    size: tModelId === 'gpt-image-2-all'
+                          ? (tSize === 'AUTO' ? (GPT2_SIZES[tRatio]?.['1K'] || '1024x1024') : (GPT2_SIZES[tRatio]?.[tSize] || GPT2_SIZES[tRatio]?.['2K'] || GPT2_SIZES[tRatio]?.['1K'] || '1024x1024'))
                           : (tSize === 'AUTO' ? undefined : tSize),
-                    response_format: 'url'
+                    response_format: 'url',
+                    safety_level: 'low',
+                    safety_setting: 'low',
+                    moderation: 'low'
                 };
                 if (tModelId === 'doubao-seedream-5-0-260128') {
                     bodyPayload.aspect_ratio = tRatio;
@@ -3525,7 +3625,7 @@ const App = () => {
                 if (!res.ok || data.error) {
                     throw new Error(`API Error (${tModelId}): ${data.error?.message || JSON.stringify(data.error) || JSON.stringify(data)}`);
                 }
-                url = data.data?.[0]?.url || findImageUrlInObject(data) || '';
+                url = findImageUrlInObject(data.data?.[0]?.url) || findImageUrlInObject(data) || '';
             } else {
                 const promptText = `${tPrompt} --aspect-ratio ${tRatio}`;
                 const content: any[] = [{ type: "text", text: promptText }];
@@ -3696,6 +3796,7 @@ const App = () => {
            setSelectedModel(asset.config.modelId);
            setAspectRatio(asset.config.aspectRatio);
            setImageSize(asset.config.imageSize);
+           if (asset.config.imageQuality) setImageQuality(asset.config.imageQuality);
            setIsTransparent(asset.config.isTransparent || false);
            executeGeneration(asset.config);
         } else if (asset.type === 'audio') {
@@ -4280,7 +4381,7 @@ const App = () => {
                                 </div>
                             )}
                             
-                            {isVideoMode && selectedVideoModel !== 'grok-video-3' && selectedVideoModel !== 'kling-avatar-image2video' && (
+                            {isVideoMode && selectedVideoModel !== 'grok-video-3' && selectedVideoModel !== 'grok-videos' && selectedVideoModel !== 'kling-avatar-image2video' && (
                                 <div className="text-xs text-brand-red font-normal mt-1">
                                     {(() => {
                                         if (selectedVideoModel === 'seedance-2.0') return '请勿上传真人，混合上传文件总数≤12个';
@@ -4424,7 +4525,7 @@ const App = () => {
                 )}
 
                 {!isVideoMode && !isAudioMode && (
-                    <div className="grid grid-cols-2 gap-2.5">
+                    <div className={`grid ${currentImageModel?.supportedQualities ? 'grid-cols-3' : 'grid-cols-2'} gap-2.5`}>
                         <div className="space-y-1">
                             <label className={labelClass}>比例 ASPECT</label>
                             <select value={aspectRatio} onChange={(e) => setAspectRatio(e.target.value)} className={selectClass}>
@@ -4432,13 +4533,32 @@ const App = () => {
                             </select>
                         </div>
                         <div className="space-y-1">
-                            <label className={labelClass}>质量 QUALITY</label>
+                            <label className={labelClass}>{currentImageModel?.supportedQualities || currentImageModel?.id === 'gpt-image-2-all' ? '分辨率 SIZE' : '质量 QUALITY'}</label>
                             <select value={imageSize} onChange={(e) => setImageSize(e.target.value)} className={selectClass}>
-                                {currentImageModel?.supportedResolutions.map((res, idx) => (
-                                    <option key={idx} value={res}>{res}</option>
-                                ))}
+                                {(() => {
+                                    const resolutions = currentImageModel?.supportedResolutions || [];
+                                    if (currentImageModel?.id === 'gpt-image-2' || currentImageModel?.id === 'gpt-image-2-all') {
+                                        const sizesForRatio = GPT2_SIZES[aspectRatio] || {};
+                                        return resolutions.map((res, idx) => (
+                                            <option key={idx} value={res} disabled={!sizesForRatio[res]}>
+                                                {res}{!sizesForRatio[res] ? ' (该比例不支持)' : ''}
+                                            </option>
+                                        ));
+                                    }
+                                    return resolutions.map((res, idx) => (
+                                        <option key={idx} value={res}>{res}</option>
+                                    ));
+                                })()}
                             </select>
                         </div>
+                        {currentImageModel?.supportedQualities && (
+                            <div className="space-y-1">
+                                <label className={labelClass}>画质 QUALITY</label>
+                                <select value={imageQuality} onChange={(e) => setImageQuality(e.target.value)} className={selectClass}>
+                                    {currentImageModel.supportedQualities.map(q => <option key={q} value={q}>{({ 'auto': 'AUTO 自动', 'low': 'LOW 省钱', 'medium': 'MEDIUM 平衡', 'high': 'HIGH 最强' } as Record<string, string>)[q] || q.toUpperCase()}</option>)}
+                                </select>
+                            </div>
+                        )}
                     </div>
                 )}
 
@@ -4534,22 +4654,22 @@ const App = () => {
                   {/* Updated Toolbar matching the provided image style */}
                   {!isAudioMode && (
                   <div className="flex flex-row gap-1.5 mb-2 overflow-x-auto no-scrollbar">
-                    <button onClick={optimizePrompt} disabled={isOptimizing} className="flex-1 flex items-center justify-center py-2 bg-white text-black border border-black brutalist-shadow-sm hover:bg-brand-yellow hover:translate-y-0.5 hover:shadow-none transition-all min-w-0" title="AI优化">
+                    <button onClick={optimizePrompt} disabled={isOptimizing} className="flex-1 flex items-center justify-center py-2 bg-white text-black border border-black brutalist-shadow-sm hover:bg-brand-yellow transition-all min-w-0" title="AI优化">
                       {isOptimizing ? <Loader2 className="w-4 h-4 animate-spin"/> : <Wand2 className="w-4 h-4"/>}
                     </button>
-                    <button onClick={() => { setTempSelectedStyles([]); setActiveModal('styles'); }} className="flex-1 flex items-center justify-center py-2 bg-white text-black border border-black brutalist-shadow-sm hover:bg-brand-yellow hover:translate-y-0.5 hover:shadow-none transition-all min-w-0" title="风格镜头">
+                    <button onClick={() => { setTempSelectedStyles([]); setActiveModal('styles'); }} className="flex-1 flex items-center justify-center py-2 bg-white text-black border border-black brutalist-shadow-sm hover:bg-brand-yellow transition-all min-w-0" title="风格镜头">
                         <Palette className="w-4 h-4"/>
                     </button>
-                    <button onClick={() => setActiveModal('library')} className="flex-1 flex items-center justify-center py-2 bg-white text-black border border-black brutalist-shadow-sm hover:bg-brand-yellow hover:translate-y-0.5 hover:shadow-none transition-all min-w-0" title="词库">
+                    <button onClick={() => setActiveModal('library')} className="flex-1 flex items-center justify-center py-2 bg-white text-black border border-black brutalist-shadow-sm hover:bg-brand-yellow transition-all min-w-0" title="词库">
                       <Bookmark className="w-4 h-4"/>
                     </button>
-                    <button onClick={handleOpenSaveModal} disabled={!prompt.trim()} className="flex-1 flex items-center justify-center py-2 bg-white text-black border border-black brutalist-shadow-sm hover:bg-brand-yellow hover:translate-y-0.5 hover:shadow-none transition-all disabled:opacity-50 disabled:grayscale disabled:hover:translate-y-0 min-w-0" title="保存">
+                    <button onClick={handleOpenSaveModal} disabled={!prompt.trim()} className="flex-1 flex items-center justify-center py-2 bg-white text-black border border-black brutalist-shadow-sm hover:bg-brand-yellow transition-all disabled:opacity-50 disabled:grayscale min-w-0" title="保存">
                       <Save className="w-4 h-4"/>
                     </button>
-                    <button onClick={() => setActiveModal('edit-prompt')} className="flex-1 flex items-center justify-center py-2 bg-white text-black border border-black brutalist-shadow-sm hover:bg-brand-yellow hover:translate-y-0.5 hover:shadow-none transition-all min-w-0" title="展开">
+                    <button onClick={() => setActiveModal('edit-prompt')} className="flex-1 flex items-center justify-center py-2 bg-white text-black border border-black brutalist-shadow-sm hover:bg-brand-yellow transition-all min-w-0" title="展开">
                       <Maximize2 className="w-4 h-4"/>
                     </button>
-                    <button onClick={() => { setPrompt(''); setDialogueLines([]); }} className="flex-1 flex items-center justify-center py-2 bg-white text-black border border-black brutalist-shadow-sm hover:bg-brand-red hover:text-white hover:translate-y-0.5 hover:shadow-none transition-all min-w-0" title="清空">
+                    <button onClick={() => { setPrompt(''); setDialogueLines([]); }} className="flex-1 flex items-center justify-center py-2 bg-white text-black border border-black brutalist-shadow-sm hover:bg-brand-red hover:text-white transition-all min-w-0" title="清空">
                       <Trash2 className="w-4 h-4"/>
                     </button>
                   </div>
@@ -4782,7 +4902,8 @@ const App = () => {
                   ) : asset.status === 'failed' ? (
                      <div className="w-full h-full flex flex-col items-center justify-center p-6 bg-slate-50">
                         <Frown className="w-16 h-16 text-gray-500 mb-3" strokeWidth={1.5} />
-                        <span className="font-normal text-sm text-gray-500 tracking-wide">生成失败</span>
+                        <span className="font-bold text-sm text-black tracking-wide">生成失败</span>
+                        <span className="font-normal text-xs text-gray-500 px-4 text-center mt-2">{asset.genTimeLabel}</span>
                      </div>
                   ) : asset.type === 'image' ? (
                     <img src={asset.url} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onClick={(e) => { if (selectedAssetIds.size === 0) { e.stopPropagation(); setPreviewAsset(asset); } }} />
@@ -4801,9 +4922,14 @@ const App = () => {
                     <span className="font-bold text-xs text-black uppercase truncate max-w-[65%]" title={asset.modelName}>
                       {asset.modelName}
                     </span>
-                    <span className="font-bold text-xs text-black uppercase">
-                       {asset.config?.aspectRatio || asset.config?.videoRatio || 'AUTO'}
-                    </span>
+                    <div className="flex items-center gap-2">
+                       <span className={`font-bold text-xs ${asset.status === 'completed' ? 'text-green-600' : 'text-gray-500'} uppercase tracking-tighter`}>
+                          {(asset.status === 'loading' || asset.status === 'queued' || asset.status === 'processing') ? <LiveTimer startTime={asset.timestamp} status={asset.status} /> : (asset.status === 'failed' ? '' : asset.genTimeLabel)}
+                       </span>
+                       <span className="font-bold text-xs pl-2 border-l border-black text-black text-right uppercase">
+                          {asset.config?.aspectRatio || asset.config?.videoRatio || 'AUTO'}
+                       </span>
+                    </div>
                   </div>
                   
                   <div className="relative group/prompt h-10">
@@ -4830,6 +4956,7 @@ const App = () => {
                             setPrompt(asset.prompt);
                             if (asset.config?.aspectRatio) setAspectRatio(asset.config.aspectRatio);
                             if (asset.config?.imageSize) setImageSize(asset.config.imageSize);
+                            if (asset.config?.imageQuality) setImageQuality(asset.config.imageQuality);
                           } else if (asset.type === 'video') {
                             setMainCategory('video');
                             setSelectedVideoModel(asset.modelId);
@@ -4934,13 +5061,21 @@ const App = () => {
                             onChange={() => setTempConfig({...tempConfig, selectedKeyIndex: 0})}
                             className="w-5 h-5 accent-brand-blue cursor-pointer"
                         />
-                        <input 
-                            type="password" 
-                            value={tempConfig.apiKey} 
-                            onChange={e => setTempConfig({...tempConfig, apiKey: e.target.value})} 
-                            placeholder="令牌 1"
-                            className={`flex-1 h-11 px-4 border border-black text-lg font-normal font-mono outline-none transition-colors tracking-widest placeholder:text-slate-300 placeholder:text-base placeholder:font-sans placeholder:tracking-normal ${tempConfig.selectedKeyIndex !== 1 ? 'bg-white focus:bg-brand-cream' : 'bg-slate-100 text-slate-400'}`}
-                        />
+                        <div className="relative flex-1">
+                            <input 
+                                type={showKey1 ? "text" : "password"} 
+                                value={tempConfig.apiKey} 
+                                onChange={e => setTempConfig({...tempConfig, apiKey: e.target.value})} 
+                                placeholder="令牌 1"
+                                className={`w-full h-11 px-4 pr-12 border border-black text-lg font-normal font-mono outline-none transition-colors tracking-widest placeholder:text-slate-300 placeholder:text-base placeholder:font-sans placeholder:tracking-normal ${tempConfig.selectedKeyIndex !== 1 ? 'bg-white focus:bg-brand-cream' : 'bg-slate-100 text-slate-400'}`}
+                            />
+                            <button 
+                                onClick={() => setShowKey1(!showKey1)}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-black transition-colors"
+                            >
+                                {showKey1 ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                            </button>
+                        </div>
                     </div>
 
                     <div className="flex items-center gap-2">
@@ -4950,13 +5085,21 @@ const App = () => {
                             onChange={() => setTempConfig({...tempConfig, selectedKeyIndex: 1})}
                             className="w-5 h-5 accent-brand-blue cursor-pointer"
                         />
-                        <input 
-                            type="password" 
-                            value={tempConfig.apiKey2 || ''} 
-                            onChange={e => setTempConfig({...tempConfig, apiKey2: e.target.value})} 
-                            placeholder="令牌 2"
-                            className={`flex-1 h-11 px-4 border border-black text-lg font-normal font-mono outline-none transition-colors tracking-widest placeholder:text-slate-300 placeholder:text-base placeholder:font-sans placeholder:tracking-normal ${tempConfig.selectedKeyIndex === 1 ? 'bg-white focus:bg-brand-cream' : 'bg-slate-100 text-slate-400'}`}
-                        />
+                        <div className="relative flex-1">
+                            <input 
+                                type={showKey2 ? "text" : "password"} 
+                                value={tempConfig.apiKey2 || ''} 
+                                onChange={e => setTempConfig({...tempConfig, apiKey2: e.target.value})} 
+                                placeholder="令牌 2"
+                                className={`w-full h-11 px-4 pr-12 border border-black text-lg font-normal font-mono outline-none transition-colors tracking-widest placeholder:text-slate-300 placeholder:text-base placeholder:font-sans placeholder:tracking-normal ${tempConfig.selectedKeyIndex === 1 ? 'bg-white focus:bg-brand-cream' : 'bg-slate-100 text-slate-400'}`}
+                            />
+                            <button 
+                                onClick={() => setShowKey2(!showKey2)}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-black transition-colors"
+                            >
+                                {showKey2 ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                            </button>
+                        </div>
                     </div>
                 </div>
 
