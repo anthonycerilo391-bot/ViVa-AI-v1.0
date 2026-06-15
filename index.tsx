@@ -3836,10 +3836,6 @@ const App = () => {
            <div className="flex items-center gap-2 sm:gap-4">
              <h1 className="text-2xl font-bold italic tracking-tight text-black shrink-0">{APP_CONFIG.APP_NAME}</h1>
              <span className="text-xs md:text-sm text-gray-800 font-normal shrink-0">
-               <span className="hidden sm:inline">此站点暂停更新，新版：</span>
-               <span className="inline sm:hidden">新版：</span>
-               <a href="https://www.vecoai.cn" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-bold">
-                 www.vecoai.cn
                </a>
              </span>
            </div>
